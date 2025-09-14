@@ -1,0 +1,7 @@
+PyQt5
+qasync
+bleak
+pyobjc-core; sys_platform == "darwin"
+pyobjc-framework-CoreBluetooth; sys_platform == "darwin"
+vosk
+sounddevice
