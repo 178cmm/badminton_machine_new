@@ -1,12 +1,16 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QComboBox, QTextEdit, QGroupBox, QTabWidget, QProgressBar, QDialog, QGridLayout, QHBoxLayout, QScrollArea
 from PyQt5.QtCore import Qt
+from qasync import asyncSlot
 import sys
 import os
+import asyncio
 # 將父目錄加入路徑以便匯入上層模組
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.parsers import get_basic_training_items, load_descriptions
 from core.executors import create_basic_training_executor
+from commands import read_data_from_json
+from bluetooth import AREA_FILE_PATH
 
 def create_basic_training_tab(self):
     """創建基礎訓練標籤頁"""

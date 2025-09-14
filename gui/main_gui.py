@@ -26,6 +26,7 @@ from . import ui_control as _ui_control
 from . import ui_warmup as _ui_warmup
 from . import ui_advanced_training as _ui_adv
 from . import ui_voice as _ui_voice
+from . import ui_simulation as _ui_simulation
 
 class BadmintonLauncherGUI(QMainWindow):
     def __init__(self):
@@ -187,11 +188,12 @@ class BadmintonLauncherGUI(QMainWindow):
         main_layout.addWidget(self.tab_widget)
 
         # 創建各個標籤頁（調整順序）
-        # 由左至右：連線設定 熱身 基礎訓練 進階訓練 手動控制 課程訓練 文本輸入控制 系統日誌
+        # 由左至右：連線設定 熱身 基礎訓練 進階訓練 模擬對打 手動控制 課程訓練 文本輸入控制 系統日誌
         self.create_connection_tab()
         self.create_warmup_tab()
         self.create_basic_training_tab()
         self.create_advanced_training_tab()
+        self.create_simulation_tab()  # 模擬對打模式
         self.create_manual_tab()
         self.create_training_tab()
         self.create_text_input_tab()  # 文本輸入控制
@@ -291,7 +293,10 @@ BadmintonLauncherGUI.on_disconnect_button_clicked = getattr(_ui_connection, 'on_
 BadmintonLauncherGUI.on_start_training_button_clicked = getattr(_ui_training, 'on_start_training_button_clicked')
 BadmintonLauncherGUI.create_warmup_tab = getattr(_ui_warmup, 'create_warmup_tab')
 BadmintonLauncherGUI.start_warmup = getattr(_ui_warmup, 'start_warmup')
-BadmintonLauncherGUI._execute_warmup = getattr(_ui_warmup, '_execute_warmup')
 BadmintonLauncherGUI.update_warmup_description = getattr(_ui_warmup, 'update_warmup_description')
 BadmintonLauncherGUI.create_advanced_training_tab = getattr(_ui_adv, 'create_advanced_training_tab')
 BadmintonLauncherGUI.start_advanced_training = getattr(_ui_adv, 'start_advanced_training')
+BadmintonLauncherGUI.create_simulation_tab = getattr(_ui_simulation, 'create_simulation_tab')
+BadmintonLauncherGUI.start_simulation_training = getattr(_ui_simulation, 'start_simulation_training')
+BadmintonLauncherGUI.stop_simulation_training = getattr(_ui_simulation, 'stop_simulation_training')
+BadmintonLauncherGUI.connect_simulation_events = getattr(_ui_simulation, 'connect_simulation_events')
