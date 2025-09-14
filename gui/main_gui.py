@@ -6,21 +6,26 @@ from PyQt5.QtCore import Qt
 import qasync
 from qasync import QEventLoop
 
+import sys
+import os
+# 將父目錄加入路徑以便匯入上層模組
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from bluetooth import BluetoothThread
 from commands import read_data_from_json, calculate_crc16_modbus, create_shot_command, parse_area_params
 from voice_control import VoiceControl
 
 # bring UI functions and attach to class after definition
-import ui_connection as _ui_connection
-import ui_training as _ui_training
-import ui_text_input as _ui_text_input
-import ui_log as _ui_log
-import ui_utils as _ui_utils
-import ui_course as _ui_course
-import ui_control as _ui_control
-import ui_warmup as _ui_warmup
-import ui_advanced_training as _ui_adv
-import ui_voice as _ui_voice
+from . import ui_connection as _ui_connection
+from . import ui_training as _ui_training
+from . import ui_text_input as _ui_text_input
+from . import ui_log as _ui_log
+from . import ui_utils as _ui_utils
+from . import ui_course as _ui_course
+from . import ui_control as _ui_control
+from . import ui_warmup as _ui_warmup
+from . import ui_advanced_training as _ui_adv
+from . import ui_voice as _ui_voice
 
 class BadmintonLauncherGUI(QMainWindow):
     def __init__(self):

@@ -4,7 +4,7 @@ import sys
 from PyQt5.QtWidgets import QApplication
 from qasync import QEventLoop
 import asyncio
-from app2 import BadmintonLauncherGUI
+from gui import BadmintonLauncherGUI
 
 def main():
     """主程式"""

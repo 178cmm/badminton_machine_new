@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QLineEdit, QTextEdit
 import re
-from ui_course import execute_training_command
+from .ui_course import execute_training_command
 
 
 def create_text_input_tab(self):
