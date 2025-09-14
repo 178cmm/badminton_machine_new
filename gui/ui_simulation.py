@@ -21,59 +21,83 @@ def create_simulation_tab(self):
     
     # 主布局
     main_layout = QVBoxLayout(simulation_widget)
-    main_layout.setSpacing(20)
-    main_layout.setContentsMargins(20, 20, 20, 20)
+    main_layout.setSpacing(10)  # 減少間距以節省空間
+    main_layout.setContentsMargins(10, 10, 10, 10)  # 減少邊距
     
-    # 標題
-    title_label = QLabel("🎯 模擬對打模式")
+    # 創建滾動區域以防止內容溢出
+    from PyQt5.QtWidgets import QScrollArea
+    scroll_area = QScrollArea()
+    scroll_widget = QWidget()
+    scroll_layout = QVBoxLayout(scroll_widget)
+    scroll_layout.setSpacing(15)
+    scroll_layout.setContentsMargins(10, 10, 10, 10)
+    
+    # AI風格標題
+    title_label = QLabel("🤖 AI SIMULATION MODE • 智能模擬對打系統")
     title_label.setObjectName("title_label")
     title_label.setAlignment(Qt.AlignCenter)
     title_label.setStyleSheet("""
         QLabel {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: bold;
-            color: #4CAF50;
-            padding: 10px;
-            background-color: rgba(76, 175, 80, 0.1);
-            border-radius: 10px;
-            border: 2px solid #4CAF50;
+            color: #ffffff;
+            padding: 16px;
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                stop:0 rgba(0, 255, 136, 0.3), stop:0.5 rgba(0, 212, 255, 0.2), stop:1 rgba(0, 255, 136, 0.3));
+            border-radius: 12px;
+            border: 3px solid qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #00ff88, stop:0.5 #00d4ff, stop:1 #00ff88);
+            letter-spacing: 1px;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
         }
     """)
-    main_layout.addWidget(title_label)
+    scroll_layout.addWidget(title_label)
     
-    # 說明文字
-    description_label = QLabel("選擇對打等級，系統會根據您的等級自動調整發球難度和間隔時間")
+    # AI風格說明文字
+    description_label = QLabel("🧠 AI 智能分析您的技能等級，自動調整發球策略、難度係數和時間間隔，提供最佳訓練體驗")
     description_label.setObjectName("description_label")
     description_label.setAlignment(Qt.AlignCenter)
+    description_label.setWordWrap(True)  # 允許文字換行
     description_label.setStyleSheet("""
         QLabel {
-            font-size: 14px;
-            color: #cccccc;
-            padding: 10px;
-            background-color: rgba(255, 255, 255, 0.05);
-            border-radius: 5px;
+            font-size: 13px;
+            color: #e0e6ff;
+            padding: 12px;
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 rgba(0, 212, 255, 0.1), stop:1 rgba(0, 255, 136, 0.05));
+            border-radius: 8px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            font-weight: 500;
         }
     """)
-    main_layout.addWidget(description_label)
+    scroll_layout.addWidget(description_label)
     
     # 等級選擇區域
     level_group = _create_level_selection_group(self)
-    main_layout.addWidget(level_group)
+    scroll_layout.addWidget(level_group)
     
     # 設定區域
     settings_group = _create_settings_group(self)
-    main_layout.addWidget(settings_group)
+    scroll_layout.addWidget(settings_group)
     
     # 控制按鈕區域
     control_group = _create_control_group(self)
-    main_layout.addWidget(control_group)
+    scroll_layout.addWidget(control_group)
     
     # 狀態顯示區域
     status_group = _create_status_group(self)
-    main_layout.addWidget(status_group)
+    scroll_layout.addWidget(status_group)
     
     # 添加彈性空間
-    main_layout.addStretch()
+    scroll_layout.addStretch()
+    
+    # 設置滾動區域
+    scroll_area.setWidget(scroll_widget)
+    scroll_area.setWidgetResizable(True)
+    scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+    scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+    
+    main_layout.addWidget(scroll_area)
     
     # 連接事件
     connect_simulation_events(self)
@@ -84,7 +108,7 @@ def create_simulation_tab(self):
 
 def _create_level_selection_group(self):
     """創建等級選擇區域"""
-    group = QGroupBox("📊 對打等級選擇")
+    group = QGroupBox("🎮 AI SKILL LEVEL • 智能技能等級選擇")
     group.setObjectName("level_group")
     group.setStyleSheet("""
         QGroupBox {
@@ -165,7 +189,8 @@ def _create_level_selection_group(self):
     # 等級詳細信息
     self.simulation_level_info = QTextEdit()
     self.simulation_level_info.setObjectName("simulation_level_info")
-    self.simulation_level_info.setMaximumHeight(100)
+    self.simulation_level_info.setMaximumHeight(80)  # 減少高度以適應小螢幕
+    self.simulation_level_info.setMinimumHeight(60)
     self.simulation_level_info.setReadOnly(True)
     self.simulation_level_info.setStyleSheet("""
         QTextEdit {
@@ -190,7 +215,7 @@ def _create_level_selection_group(self):
 
 def _create_settings_group(self):
     """創建設定區域"""
-    group = QGroupBox("⚙️ 進階設定")
+    group = QGroupBox("⚙️ ADVANCED CONFIG • AI 進階配置")
     group.setObjectName("settings_group")
     group.setStyleSheet("""
         QGroupBox {
@@ -292,7 +317,7 @@ def _create_settings_group(self):
 
 def _create_control_group(self):
     """創建控制按鈕區域"""
-    group = QGroupBox("🎮 控制面板")
+    group = QGroupBox("🚀 MISSION CONTROL • AI 任務控制中心")
     group.setObjectName("control_group")
     group.setStyleSheet("""
         QGroupBox {
@@ -376,7 +401,7 @@ def _create_control_group(self):
 
 def _create_status_group(self):
     """創建狀態顯示區域"""
-    group = QGroupBox("📊 狀態資訊")
+    group = QGroupBox("📊 SYSTEM STATUS • AI 系統狀態監控")
     group.setObjectName("status_group")
     group.setStyleSheet("""
         QGroupBox {

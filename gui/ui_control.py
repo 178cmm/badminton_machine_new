@@ -15,47 +15,87 @@ def create_manual_tab(self):
     scroll_widget = QWidget()
     scroll_layout = QVBoxLayout(scroll_widget)
     
-    # 前場區域組
-    front_group = QGroupBox("🏸 前場區域 (sec1-sec5)")
+    # 前場區域組 - AI風格
+    front_group = QGroupBox("🎯 FRONT ZONE • 前場精準區域 (sec1-sec5)")
+    front_group.setStyleSheet("""
+        QGroupBox::title {
+            color: #00ff88;
+            font-weight: bold;
+            font-size: 14px;
+        }
+    """)
     front_layout = QGridLayout(front_group)
     self.create_area_buttons(front_layout, 1, 5)
     scroll_layout.addWidget(front_group)
     
-    # 中場區域組
-    middle_group = QGroupBox("🎯 中場區域 (sec6-sec15)")
+    # 中場區域組 - AI風格
+    middle_group = QGroupBox("⚡ MID ZONE • 中場戰術區域 (sec6-sec15)")
+    middle_group.setStyleSheet("""
+        QGroupBox::title {
+            color: #ffaa00;
+            font-weight: bold;
+            font-size: 14px;
+        }
+    """)
     middle_layout = QGridLayout(middle_group)
     self.create_area_buttons(middle_layout, 6, 15)
     scroll_layout.addWidget(middle_group)
     
-    # 後場區域組
-    back_group = QGroupBox("🏁 後場區域 (sec16-sec25)")
+    # 後場區域組 - AI風格
+    back_group = QGroupBox("🔥 BACK ZONE • 後場威力區域 (sec16-sec25)")
+    back_group.setStyleSheet("""
+        QGroupBox::title {
+            color: #ff6644;
+            font-weight: bold;
+            font-size: 14px;
+        }
+    """)
     back_layout = QGridLayout(back_group)
     self.create_area_buttons(back_layout, 16, 25)
     scroll_layout.addWidget(back_group)
     
-    # 快速發球組
-    quick_group = QGroupBox("⚡ 快速發球")
+    # 快速發球組 - AI風格
+    quick_group = QGroupBox("⚡ QUICK LAUNCH • AI 快速發球系統")
+    quick_group.setStyleSheet("""
+        QGroupBox::title {
+            color: #00d4ff;
+            font-weight: bold;
+            font-size: 14px;
+        }
+    """)
     quick_layout = QHBoxLayout(quick_group)
     
-    # 常用球路按鈕
+    # AI風格常用球路按鈕
     common_shots = [
-        ("前場正手", "sec1_1"), ("前場反手", "sec6_1"),
-        ("中場正手", "sec11_1"), ("中場反手", "sec16_1"),
-        ("後場正手", "sec21_1"), ("後場反手", "sec25_1")
+        ("🎯 前場精準", "sec1_1"), ("🔄 前場變化", "sec6_1"),
+        ("⚡ 中場快攻", "sec11_1"), ("🌀 中場旋轉", "sec16_1"),
+        ("🔥 後場威力", "sec21_1"), ("💫 後場變線", "sec25_1")
     ]
     
     for name, section in common_shots:
         button = QPushButton(name)
         button.setStyleSheet("""
             QPushButton {
-                background-color: #2196F3;
-                color: white;
-                padding: 10px 15px;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #ff6b35, stop:0.5 #f7931e, stop:1 #ff6b35);
+                color: #ffffff;
+                padding: 12px 16px;
                 font-weight: bold;
-                border-radius: 5px;
+                font-size: 12px;
+                border: 2px solid #ff6b35;
+                border-radius: 10px;
+                min-width: 80px;
+                text-shadow: 0 0 5px rgba(255, 107, 53, 0.5);
             }
             QPushButton:hover {
-                background-color: #1976D2;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #ff8c5a, stop:0.5 #ffaa44, stop:1 #ff8c5a);
+                border: 2px solid #ff8c5a;
+                box-shadow: 0 0 15px rgba(255, 107, 53, 0.6);
+            }
+            QPushButton:pressed {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #cc5529, stop:1 #aa4422);
             }
         """)
         button.clicked.connect(lambda checked, s=section: self.send_single_shot(s))

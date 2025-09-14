@@ -12,6 +12,11 @@ def create_training_tab(self):
     training_widget = QWidget()
     layout = QVBoxLayout(training_widget)
     
+    # 創建滾動區域以防止內容溢出
+    scroll_area = QScrollArea()
+    scroll_widget = QWidget()
+    scroll_layout = QVBoxLayout(scroll_widget)
+    
     # 訓練套餐選擇組
     program_group = QGroupBox("課程訓練選擇")
     program_layout = QVBoxLayout(program_group)
@@ -31,7 +36,8 @@ def create_training_tab(self):
     
     # 套餐描述
     self.program_description = QTextEdit()
-    self.program_description.setMaximumHeight(100)
+    self.program_description.setMaximumHeight(80)  # 減少高度以適應小螢幕
+    self.program_description.setMinimumHeight(60)
     self.program_description.setReadOnly(True)
     program_layout.addWidget(QLabel("套餐描述: "))
     program_layout.addWidget(self.program_description)
@@ -78,8 +84,16 @@ def create_training_tab(self):
     self.progress_bar.setVisible(False)
     program_layout.addWidget(self.progress_bar)
     
-    layout.addWidget(program_group)
-    layout.addStretch()
+    scroll_layout.addWidget(program_group)
+    scroll_layout.addStretch()
+    
+    # 設置滾動區域
+    scroll_area.setWidget(scroll_widget)
+    scroll_area.setWidgetResizable(True)
+    scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+    scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+    
+    layout.addWidget(scroll_area)
     
     self.tab_widget.addTab(training_widget, "課程訓練")
 

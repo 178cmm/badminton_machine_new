@@ -379,12 +379,24 @@ class VoiceControl:
             return
 
         self._log_ui(f"解析：{parsed}")
-        # 啟動非阻塞的發球流程（避免與既有訓練衝突，只送指定顆數）
-        if self._execute_task and not self._execute_task.done():
-            self._execute_task.cancel()
-        self._execute_task = asyncio.create_task(self._execute_specific_shot(parsed["shot_name"], parsed["count"], parsed["interval"]))
+        
+        # 處理模擬對打指令
+        if parsed.get("type") == "start_simulation":
+            self._execute_simulation_command(parsed)
+        elif parsed.get("type") == "stop_simulation":
+            self._execute_stop_simulation_command()
+        else:
+            # 啟動非阻塞的發球流程（避免與既有訓練衝突，只送指定顆數）
+            if self._execute_task and not self._execute_task.done():
+                self._execute_task.cancel()
+            self._execute_task = asyncio.create_task(self._execute_specific_shot(parsed["shot_name"], parsed["count"], parsed["interval"]))
 
     def _parse_command_from_text(self, text: str) -> Optional[dict]:
+        # 首先檢查是否為模擬對打指令
+        simulation_result = self._parse_simulation_command(text)
+        if simulation_result:
+            return simulation_result
+        
         # 找球種（以包含關鍵片段為準）
         shot_name = None
         for name in SHOT_NAMES:
@@ -407,6 +419,101 @@ class VoiceControl:
             interval = 5.0
 
         return {"shot_name": shot_name, "count": int(count), "interval": float(interval)}
+
+    def _parse_simulation_command(self, text: str) -> Optional[dict]:
+        """解析模擬對打指令"""
+        # 模擬對打關鍵字
+        simulation_keywords = ["模擬對打", "對打模式", "對打", "模擬", "對戰", "對練"]
+        
+        # 檢查是否包含模擬對打關鍵字
+        if not any(keyword in text for keyword in simulation_keywords):
+            return None
+        
+        # 檢查是否為停止指令
+        stop_keywords = ["停止", "結束", "暫停"]
+        if any(keyword in text for keyword in stop_keywords):
+            return {"type": "stop_simulation"}
+        
+        # 提取等級
+        level = self._extract_simulation_level(text)
+        if level is None:
+            level = 1  # 預設等級
+        
+        # 檢查是否使用雙發球機
+        dual_keywords = ["雙發球機", "兩台", "雙機", "雙球機", "兩台發球機"]
+        use_dual = any(keyword in text for keyword in dual_keywords)
+        
+        return {
+            "type": "start_simulation",
+            "level": level,
+            "use_dual_machine": use_dual
+        }
+    
+    def _extract_simulation_level(self, text: str) -> Optional[int]:
+        """提取模擬對打等級"""
+        # 直接匹配數字
+        level = self._extract_first_int_in_range(text, 1, 12)
+        if level:
+            return level
+        
+        # 匹配中文數字
+        cn_level = self._extract_first_cn_number(text)
+        if cn_level and 1 <= cn_level <= 12:
+            return cn_level
+        
+        # 匹配等級關鍵字
+        level_keywords = {
+            "一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6,
+            "七": 7, "八": 8, "九": 9, "十": 10, "十一": 11, "十二": 12
+        }
+        
+        for keyword, level in level_keywords.items():
+            if keyword in text:
+                return level
+        
+        return None
+
+    def _execute_simulation_command(self, parsed: dict):
+        """執行模擬對打指令"""
+        try:
+            level = parsed.get("level", 1)
+            use_dual = parsed.get("use_dual_machine", False)
+            
+            self._log_ui(f"開始模擬對打 - 等級 {level}" + (" (雙發球機)" if use_dual else ""))
+            
+            # 創建模擬對打執行器
+            if not hasattr(self.window, 'simulation_executor'):
+                from core.executors.simulation_executor import create_simulation_executor
+                self.window.simulation_executor = create_simulation_executor(self.window)
+            
+            # 開始模擬對打
+            success = self.window.simulation_executor.start_simulation(level, use_dual)
+            
+            if success:
+                self._log_ui(f"✅ 模擬對打已開始 - 等級 {level}")
+            else:
+                self._log_ui("❌ 開始模擬對打失敗")
+                
+        except Exception as e:
+            self._log_ui(f"❌ 執行模擬對打指令時發生錯誤: {e}")
+    
+    def _execute_stop_simulation_command(self):
+        """執行停止模擬對打指令"""
+        try:
+            self._log_ui("停止模擬對打")
+            
+            if hasattr(self.window, 'simulation_executor'):
+                success = self.window.simulation_executor.stop_simulation()
+                
+                if success:
+                    self._log_ui("✅ 模擬對打已停止")
+                else:
+                    self._log_ui("❌ 停止模擬對打失敗")
+            else:
+                self._log_ui("❌ 沒有正在運行的模擬對打")
+                
+        except Exception as e:
+            self._log_ui(f"❌ 停止模擬對打時發生錯誤: {e}")
 
     @staticmethod
     def _extract_first_int_in_range(text: str, min_v: int, max_v: int) -> Optional[int]:

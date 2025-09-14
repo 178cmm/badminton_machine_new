@@ -47,117 +47,282 @@ class BadmintonLauncherGUI(QMainWindow):
     def init_ui(self):
         """初始化使用者介面"""
         # 設定視窗標題和大小
-        self.setWindowTitle("羽毛球發球機控制系統")
-        self.setGeometry(100, 100, 1000, 700)
+        self.setWindowTitle("🤖 AI 羽毛球發球機控制系統 v2.0")
+        # 設定最小尺寸並使用螢幕尺寸的80%作為初始大小
+        from PyQt5.QtWidgets import QDesktopWidget
+        from PyQt5.QtCore import Qt
+        desktop = QDesktopWidget()
+        screen_rect = desktop.screenGeometry()
+        width = int(screen_rect.width() * 0.8)
+        height = int(screen_rect.height() * 0.8)
+        self.setGeometry(100, 100, min(1200, width), min(800, height))
+        self.setMinimumSize(800, 600)  # 設定最小尺寸
+        
+        # 設定視窗圖示和屬性
+        self.setWindowFlags(Qt.Window | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint)
+        self.setAttribute(Qt.WA_TranslucentBackground, False)
 
-        # 設定深色主題樣式
+        # 設定柔和AI科技感主題樣式
         self.setStyleSheet("""
+            /* 主視窗背景 - 柔和深藍漸層 */
             QMainWindow {
-                background-color: #2b2b2b;
-                color: #ffffff;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                    stop:0 #1a1d2e, stop:0.3 #2a2d3e, stop:0.7 #3a3d4e, stop:1 #2a2d3e);
+                color: #d0d6e5;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
             }
+            
+            /* 通用Widget樣式 */
             QWidget {
-                background-color: #2b2b2b;
-                color: #ffffff;
+                background-color: transparent;
+                color: #c0c6d5;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
             }
+            
+            /* GroupBox - 柔和科技感邊框 */
             QGroupBox {
-                font-weight: bold;
-                border: 2px solid #555555;
-                border-radius: 5px;
-                margin-top: 1ex;
-                padding-top: 10px;
-                background-color: #3c3c3c;
-                color: #ffffff;
+                font-weight: 600;
+                font-size: 14px;
+                border: 1px solid qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #4a7c8a, stop:0.5 #5a8c9a, stop:1 #4a7c8a);
+                border-radius: 10px;
+                margin-top: 12px;
+                padding-top: 16px;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 rgba(74, 124, 138, 0.08), stop:1 rgba(90, 140, 154, 0.04));
+                color: #e0e6f0;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px 0 5px;
+                left: 16px;
+                padding: 4px 12px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #5a8c9a, stop:1 #4a7c8a);
                 color: #ffffff;
-            }
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-size: 14px;
+                border-radius: 6px;
                 font-weight: bold;
             }
+            
+            /* 按鈕 - 柔和科技效果 */
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #5a8c9a, stop:0.5 #4a7c8a, stop:1 #3a6c7a);
+                color: #ffffff;
+                border: 1px solid #5a8c9a;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: 500;
+                min-height: 18px;
+            }
             QPushButton:hover {
-                background-color: #45a049;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #6a9caa, stop:0.5 #5a8c9a, stop:1 #4a7c8a);
+                border: 1px solid #6a9caa;
             }
             QPushButton:pressed {
-                background-color: #3d8b40;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #3a6c7a, stop:0.5 #2a5c6a, stop:1 #1a4c5a);
+                border: 1px solid #4a7c8a;
             }
             QPushButton:disabled {
-                background-color: #555555;
-                color: #888888;
-            }
-            QComboBox {
-                padding: 5px;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #555555, stop:1 #333333);
+                color: #777777;
                 border: 1px solid #555555;
-                border-radius: 3px;
-                font-size: 14px;
-                background-color: #3c3c3c;
+            }
+            
+            /* 下拉選單 - 柔和設計 */
+            QComboBox {
+                padding: 6px 10px;
+                border: 1px solid #5a8c9a;
+                border-radius: 6px;
+                font-size: 13px;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 rgba(90, 140, 154, 0.1), stop:1 rgba(74, 124, 138, 0.05));
                 color: #ffffff;
+                min-height: 18px;
+            }
+            QComboBox:hover {
+                border: 1px solid #6a9caa;
             }
             QComboBox::drop-down {
                 border: none;
+                width: 25px;
             }
             QComboBox::down-arrow {
                 image: none;
                 border-left: 5px solid transparent;
                 border-right: 5px solid transparent;
-                border-top: 5px solid #ffffff;
+                border-top: 6px solid #5a8c9a;
+                margin-right: 6px;
             }
             QComboBox QAbstractItemView {
-                background-color: #3c3c3c;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #2a2d3e, stop:1 #1a1d2e);
                 color: #ffffff;
-                border: 1px solid #555555;
-                selection-background-color: #4CAF50;
+                border: 1px solid #5a8c9a;
+                border-radius: 6px;
+                selection-background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #5a8c9a, stop:1 #4a7c8a);
+                selection-color: #ffffff;
+                padding: 4px;
             }
+            
+            /* 文字編輯區 - 柔和終端機風格 */
             QTextEdit {
-                border: 1px solid #555555;
-                border-radius: 3px;
-                padding: 5px;
-                font-family: 'Courier New';
+                border: 1px solid #5a8c9a;
+                border-radius: 6px;
+                padding: 8px;
+                font-family: 'Consolas', 'Monaco', monospace;
                 font-size: 12px;
-                background-color: #1e1e1e;
-                color: #ffffff;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 rgba(0, 0, 0, 0.6), stop:1 rgba(90, 140, 154, 0.05));
+                color: #7fb069;
+                selection-background-color: #5a8c9a;
+                selection-color: #ffffff;
             }
+            QTextEdit:focus {
+                border: 1px solid #6a9caa;
+            }
+            
+            /* 輸入框 */
+            QLineEdit {
+                border: 1px solid #5a8c9a;
+                border-radius: 6px;
+                padding: 6px 10px;
+                font-size: 13px;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 rgba(90, 140, 154, 0.1), stop:1 rgba(74, 124, 138, 0.05));
+                color: #ffffff;
+                min-height: 18px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #6a9caa;
+            }
+            
+            /* 標籤 */
             QLabel {
-                color: #ffffff;
+                color: #c0c6d5;
+                font-weight: 500;
             }
+            
+            /* 標籤頁 - 柔和標籤 */
             QTabWidget::pane {
-                border: 1px solid #555555;
-                background-color: #2b2b2b;
+                border: 1px solid #5a8c9a;
+                border-radius: 8px;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 rgba(90, 140, 154, 0.05), stop:1 rgba(74, 124, 138, 0.02));
+                margin-top: 6px;
             }
             QTabBar::tab {
-                background-color: #3c3c3c;
-                color: #ffffff;
-                padding: 8px 16px;
-                margin-right: 2px;
-                border-top-left-radius: 4px;
-                border-top-right-radius: 4px;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 rgba(90, 140, 154, 0.15), stop:1 rgba(74, 124, 138, 0.08));
+                color: #c0c6d5;
+                padding: 6px 8px;
+                margin-right: 1px;
+                border-top-left-radius: 6px;
+                border-top-right-radius: 6px;
+                border: 1px solid #5a8c9a;
+                border-bottom: none;
+                font-weight: 500;
+                max-width: 80px;
+                min-width: 50px;
+                font-size: 11px;
             }
             QTabBar::tab:selected {
-                background-color: #4CAF50;
-                color: white;
-            }
-            QTabBar::tab:hover {
-                background-color: #555555;
-            }
-            QProgressBar {
-                border: 1px solid #555555;
-                border-radius: 3px;
-                text-align: center;
-                background-color: #3c3c3c;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #5a8c9a, stop:1 #4a7c8a);
                 color: #ffffff;
+                font-weight: bold;
+            }
+            QTabBar::tab:hover:!selected {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 rgba(90, 140, 154, 0.25), stop:1 rgba(74, 124, 138, 0.15));
+            }
+            
+            /* 進度條 - 柔和能量條效果 */
+            QProgressBar {
+                border: 1px solid #5a8c9a;
+                border-radius: 6px;
+                text-align: center;
+                background: rgba(0, 0, 0, 0.3);
+                color: #ffffff;
+                font-weight: bold;
+                min-height: 18px;
             }
             QProgressBar::chunk {
-                background-color: #4CAF50;
-                border-radius: 2px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #7fb069, stop:0.5 #5a8c9a, stop:1 #4a7c8a);
+                border-radius: 4px;
+                margin: 1px;
+            }
+            
+            /* 滾動條 - 柔和滾動條 */
+            QScrollBar:vertical {
+                background: rgba(0, 0, 0, 0.2);
+                width: 10px;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #5a8c9a, stop:1 #4a7c8a);
+                border-radius: 5px;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #6a9caa, stop:1 #5a8c9a);
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            
+            /* 核取方塊 */
+            QCheckBox {
+                color: #c0c6d5;
+                font-weight: 500;
+            }
+            QCheckBox::indicator {
+                width: 16px;
+                height: 16px;
+                border: 1px solid #5a8c9a;
+                border-radius: 3px;
+                background: rgba(90, 140, 154, 0.1);
+            }
+            QCheckBox::indicator:checked {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                    stop:0 #5a8c9a, stop:1 #4a7c8a);
+            }
+            QCheckBox::indicator:checked:after {
+                content: "✓";
+                color: #ffffff;
+                font-weight: bold;
+            }
+            
+            /* 數值選擇器 */
+            QSpinBox {
+                border: 1px solid #5a8c9a;
+                border-radius: 6px;
+                padding: 6px;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 rgba(90, 140, 154, 0.1), stop:1 rgba(74, 124, 138, 0.05));
+                color: #ffffff;
+                font-size: 13px;
+            }
+            QSpinBox:hover {
+                border: 1px solid #6a9caa;
+            }
+            QSpinBox::up-button, QSpinBox::down-button {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #5a8c9a, stop:1 #4a7c8a);
+                border: none;
+                border-radius: 3px;
+                width: 18px;
+            }
+            QSpinBox::up-button:hover, QSpinBox::down-button:hover {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #6a9caa, stop:1 #5a8c9a);
             }
         """)
 
@@ -168,23 +333,31 @@ class BadmintonLauncherGUI(QMainWindow):
         # 創建主佈局
         main_layout = QVBoxLayout(central_widget)
 
-        # 創建標題
-        title_label = QLabel("🏸 羽毛球發球機控制系統")
+        # 創建柔和AI科技感標題
+        title_label = QLabel("🤖 AI BADMINTON LAUNCHER CONTROL SYSTEM v2.0")
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setStyleSheet("""
             font-size: 24px;
             font-weight: bold;
-            color: #4CAF50;
-            margin: 10px;
-            padding: 10px;
-            background-color: #3c3c3c;
-            border-radius: 8px;
-            border: 2px solid #4CAF50;
+            color: #ffffff;
+            margin: 12px;
+            padding: 16px;
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                stop:0 rgba(90, 140, 154, 0.2), stop:0.5 rgba(74, 124, 138, 0.15), stop:1 rgba(90, 140, 154, 0.2));
+            border-radius: 12px;
+            border: 2px solid qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #5a8c9a, stop:0.5 #4a7c8a, stop:1 #5a8c9a);
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            letter-spacing: 1px;
         """)
         main_layout.addWidget(title_label)
 
         # 創建標籤頁
         self.tab_widget = QTabWidget()
+        # 設定標籤頁為可滾動，防止溢出
+        self.tab_widget.setTabsClosable(False)
+        self.tab_widget.setMovable(False)
+        self.tab_widget.setUsesScrollButtons(True)  # 當標籤過多時顯示滾動按鈕
         main_layout.addWidget(self.tab_widget)
 
         # 創建各個標籤頁（調整順序）
@@ -200,15 +373,20 @@ class BadmintonLauncherGUI(QMainWindow):
         self.create_voice_tab()  # 語音控制
         self.create_log_tab()
 
-        # 創建狀態欄
-        self.status_label = QLabel("未連接")
+        # 創建柔和AI風格狀態欄
+        self.status_label = QLabel("🔴 SYSTEM STATUS: DISCONNECTED")
+        self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setStyleSheet("""
-            padding: 8px;
-            background-color: #ff4444;
-            color: white;
-            border-radius: 5px;
+            padding: 10px 16px;
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 rgba(180, 80, 80, 0.6), stop:0.5 rgba(150, 60, 60, 0.4), stop:1 rgba(180, 80, 80, 0.6));
+            color: #ffffff;
+            border-radius: 8px;
             font-weight: bold;
-            border: 1px solid #cc0000;
+            font-size: 13px;
+            border: 1px solid #b45050;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            letter-spacing: 1px;
         """)
         main_layout.addWidget(self.status_label)
 
@@ -221,6 +399,40 @@ class BadmintonLauncherGUI(QMainWindow):
         """錯誤處理"""
         # 記錄錯誤訊息
         self.log_message(f"錯誤: {message}")
+    
+    def update_connection_status(self, is_connected, message=""):
+        """更新柔和AI風格連接狀態"""
+        if is_connected:
+            self.status_label.setText("🟢 SYSTEM STATUS: CONNECTED & READY")
+            self.status_label.setStyleSheet("""
+                padding: 10px 16px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 rgba(120, 180, 120, 0.6), stop:0.5 rgba(100, 150, 100, 0.4), stop:1 rgba(120, 180, 120, 0.6));
+                color: #ffffff;
+                border-radius: 8px;
+                font-weight: bold;
+                font-size: 13px;
+                border: 1px solid #78b478;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                letter-spacing: 1px;
+            """)
+        else:
+            self.status_label.setText("🔴 SYSTEM STATUS: DISCONNECTED")
+            self.status_label.setStyleSheet("""
+                padding: 10px 16px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 rgba(180, 80, 80, 0.6), stop:0.5 rgba(150, 60, 60, 0.4), stop:1 rgba(180, 80, 80, 0.6));
+                color: #ffffff;
+                border-radius: 8px;
+                font-weight: bold;
+                font-size: 13px;
+                border: 1px solid #b45050;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                letter-spacing: 1px;
+            """)
+        
+        if message:
+            self.log_message(message)
 
     def closeEvent(self, event):
         """視窗關閉事件"""

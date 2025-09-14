@@ -1,4 +1,5 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QComboBox, QGroupBox, QHBoxLayout, QProgressBar, QTextEdit
+from PyQt5.QtCore import Qt
 import sys
 import os
 # 將父目錄加入路徑以便匯入上層模組
@@ -15,6 +16,12 @@ def create_advanced_training_tab(self):
 
     widget = QWidget()
     layout = QVBoxLayout(widget)
+    
+    # 創建滾動區域以防止內容溢出
+    from PyQt5.QtWidgets import QScrollArea
+    scroll_area = QScrollArea()
+    scroll_widget = QWidget()
+    scroll_layout = QVBoxLayout(scroll_widget)
 
     # 控制區塊
     control_group = QGroupBox("進階訓練設定")
@@ -68,23 +75,31 @@ def create_advanced_training_tab(self):
     row3.addWidget(stop_btn)
     control_layout.addLayout(row3)
 
-    layout.addWidget(control_group)
+    scroll_layout.addWidget(control_group)
 
     # 說明區
     info_group = QGroupBox("訓練說明")
     info_layout = QVBoxLayout(info_group)
     self.advanced_description = QTextEdit()
     self.advanced_description.setReadOnly(True)
-    self.advanced_description.setMinimumHeight(220)
+    self.advanced_description.setMinimumHeight(150)  # 減少最小高度以適應小螢幕
     info_layout.addWidget(self.advanced_description)
-    layout.addWidget(info_group)
+    scroll_layout.addWidget(info_group)
 
     # 進度條
     self.advanced_progress_bar = QProgressBar()
     self.advanced_progress_bar.setVisible(False)
-    layout.addWidget(self.advanced_progress_bar)
+    scroll_layout.addWidget(self.advanced_progress_bar)
 
-    layout.addStretch()
+    scroll_layout.addStretch()
+    
+    # 設置滾動區域
+    scroll_area.setWidget(scroll_widget)
+    scroll_area.setWidgetResizable(True)
+    scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+    scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+    
+    layout.addWidget(scroll_area)
     self.tab_widget.addTab(widget, "進階訓練")
 
     # 初始化描述

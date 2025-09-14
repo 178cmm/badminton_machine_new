@@ -13,6 +13,12 @@ def create_warmup_tab(self):
     """建立熱身標籤頁，提供基礎/進階/全面熱身三種模式。"""
     warmup_widget = QWidget()
     layout = QVBoxLayout(warmup_widget)
+    
+    # 創建滾動區域以防止內容溢出
+    from PyQt5.QtWidgets import QScrollArea
+    scroll_area = QScrollArea()
+    scroll_widget = QWidget()
+    scroll_layout = QVBoxLayout(scroll_widget)
 
     # 控制區塊
     control_group = QGroupBox("熱身設定")
@@ -53,7 +59,7 @@ def create_warmup_tab(self):
     buttons_row.addWidget(stop_btn)
     control_layout.addLayout(buttons_row)
 
-    layout.addWidget(control_group)
+    scroll_layout.addWidget(control_group)
 
     # 熱身說明區
     info_group = QGroupBox("熱身說明")
@@ -68,17 +74,25 @@ def create_warmup_tab(self):
 
     self.warmup_description = QTextEdit()
     self.warmup_description.setReadOnly(True)
-    self.warmup_description.setMinimumHeight(160)
+    self.warmup_description.setMinimumHeight(120)  # 減少最小高度以適應小螢幕
     info_layout.addWidget(self.warmup_description)
 
-    layout.addWidget(info_group)
+    scroll_layout.addWidget(info_group)
 
     # 進度條（獨立於課程訓練頁）
     self.warmup_progress_bar = QProgressBar()
     self.warmup_progress_bar.setVisible(False)
-    layout.addWidget(self.warmup_progress_bar)
+    scroll_layout.addWidget(self.warmup_progress_bar)
 
-    layout.addStretch()
+    scroll_layout.addStretch()
+    
+    # 設置滾動區域
+    scroll_area.setWidget(scroll_widget)
+    scroll_area.setWidgetResizable(True)
+    scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+    scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+    
+    layout.addWidget(scroll_area)
     self.tab_widget.addTab(warmup_widget, "熱身套餐")
 
     # 初始化描述

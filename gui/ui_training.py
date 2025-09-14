@@ -17,6 +17,11 @@ def create_basic_training_tab(self):
     basic_training_widget = QWidget()
     layout = QVBoxLayout(basic_training_widget)
     
+    # 創建滾動區域以防止內容溢出
+    scroll_area = QScrollArea()
+    scroll_widget = QWidget()
+    scroll_layout = QVBoxLayout(scroll_widget)
+    
     # 創建按鈕網格
     button_grid = QGridLayout()
     
@@ -34,7 +39,15 @@ def create_basic_training_tab(self):
         row, col = divmod(i, 4)  # 4列
         button_grid.addWidget(button, row, col)
     
-    layout.addLayout(button_grid)
+    scroll_layout.addLayout(button_grid)
+    
+    # 設置滾動區域
+    scroll_area.setWidget(scroll_widget)
+    scroll_area.setWidgetResizable(True)
+    scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+    scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+    
+    layout.addWidget(scroll_area)
     
     self.tab_widget.addTab(basic_training_widget, "基礎訓練")
 
@@ -84,7 +97,13 @@ def select_basic_training(self, section, shot_name=None):
     dialog_layout.addWidget(count_label)
     dialog_layout.addWidget(count_combo)
     
-    dialog.setFixedSize(530, 480)  # 設置對話框大小，容納描述與設定
+    # 動態設置對話框大小，根據螢幕尺寸調整
+    from PyQt5.QtWidgets import QApplication
+    screen = QApplication.desktop().screenGeometry()
+    dialog_width = min(600, int(screen.width() * 0.4))
+    dialog_height = min(550, int(screen.height() * 0.6))
+    dialog.resize(dialog_width, dialog_height)
+    dialog.setMinimumSize(480, 400)  # 設定最小尺寸
 
     # 確認和停止按鈕佈局
     button_layout = QHBoxLayout()
