@@ -1,11 +1,11 @@
-import asyncio
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QComboBox, QTextEdit, QGroupBox, QTabWidget, QProgressBar, QDialog, QGridLayout, QHBoxLayout, QScrollArea
 from PyQt5.QtCore import Qt
-from commands import read_data_from_json
-import time
-from qasync import asyncSlot
+import sys
+import os
+# 將父目錄加入路徑以便匯入上層模組
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-AREA_FILE_PATH = "area.json"
+from core.executors import create_course_executor
 
 def create_training_tab(self):
     """創建訓練標籤頁"""
@@ -70,7 +70,8 @@ def create_training_tab(self):
     self.start_training_button.setEnabled(False)
     program_layout.addWidget(self.start_training_button)
     
-    # 移除重複的停止鍵建立（避免覆蓋之前的按鈕與狀態）
+    # 建立課程執行器
+    self.course_executor = create_course_executor(self)
     
     # 進度條
     self.progress_bar = QProgressBar()
@@ -84,92 +85,9 @@ def create_training_tab(self):
 
 
 def execute_training_command(self, command, programs_data):
-    """
-    根據用戶的指令，執行相應的訓練操作。
+    """根據用戶的指令，執行相應的訓練操作（UI 層面的處理）"""
+    if not hasattr(self, 'course_executor'):
+        self.course_executor = create_course_executor(self)
     
-    :param command: 用戶的指令，包含訓練類型、項目、數量、間隔等信息
-    :param programs_data: 訓練套餐的數據
-    """
-    if command['type'] == 'specific_shot':
-        # 處理特定項目的練習
-        shot_name = command['shot_name']
-        count = command['count']
-        interval = command['interval']
-        self.practice_specific_shot(shot_name, count, interval)
-    elif command['type'] == 'stop':
-        # 停止目前訓練
-        self.stop_training()
-    elif command['type'] == 'scan':
-        # 掃描發球機
-        try:
-            asyncio.create_task(self.scan_devices())
-        except Exception:
-            pass
-    elif command['type'] == 'connect':
-        # 連接當前選擇的發球機
-        try:
-            asyncio.create_task(self.connect_device())
-        except Exception:
-            pass
-    elif command['type'] == 'disconnect':
-        # 斷開當前連線
-        try:
-            asyncio.create_task(self.disconnect_device())
-        except Exception:
-            pass
-    elif command['type'] == 'start_warmup':
-        # 熱身（可選速度）
-        warmup_type = command.get('warmup_type', 'basic')
-        speed = command.get('speed')
-        try:
-            if speed and hasattr(self, 'warmup_speed_combo'):
-                # 僅在選項存在時設定
-                if speed in ["慢", "正常", "快", "極限快"]:
-                    self.warmup_speed_combo.setCurrentText(speed)
-            self.start_warmup(warmup_type)
-        except Exception:
-            pass
-    elif command['type'] == 'start_advanced':
-        # 進階訓練（可選標題/速度/球數）
-        title = command.get('title')
-        speed = command.get('speed')
-        balls = command.get('balls')
-        try:
-            if title and hasattr(self, 'advanced_combo') and self.advanced_combo.count():
-                # 設定對應標題
-                for idx in range(self.advanced_combo.count()):
-                    if self.advanced_combo.itemText(idx) == title:
-                        self.advanced_combo.setCurrentIndex(idx)
-                        break
-            if speed and hasattr(self, 'advanced_speed_combo'):
-                if speed in ["慢", "正常", "快", "極限快"]:
-                    self.advanced_speed_combo.setCurrentText(speed)
-            if balls and hasattr(self, 'advanced_ball_count_combo'):
-                label = f"{int(balls)}顆" if int(balls) in [10, 20, 30] else None
-                if label:
-                    self.advanced_ball_count_combo.setCurrentText(label)
-            self.start_advanced_training()
-        except Exception:
-            pass
-    elif command['type'] == 'start_current':
-        # 直接開始目前所選（可選速度/球數）
-        speed = command.get('speed')
-        balls = command.get('balls')
-        try:
-            if speed and hasattr(self, 'speed_combo'):
-                if speed in ["慢", "正常", "快", "極限快"]:
-                    self.speed_combo.setCurrentText(speed)
-            if balls and hasattr(self, 'ball_count_combo'):
-                label = f"{int(balls)}顆" if int(balls) in [10, 20, 30] else None
-                if label:
-                    self.ball_count_combo.setCurrentText(label)
-            # asyncSlot 可直接呼叫，內部會建立 task 或返回協程
-            self.start_training()
-        except Exception:
-            pass
-    elif command['type'] == 'level_program':
-        # 處理特定等級的套餐練習
-        level = command['level']
-        self.practice_level_programs(level, programs_data)
-    else:
-        print("未知的指令類型")
+    # 使用課程執行器處理命令邏輯
+    self.course_executor.execute_training_command(command, programs_data)

@@ -1,12 +1,12 @@
-import asyncio
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QComboBox, QTextEdit, QGroupBox, QTabWidget, QProgressBar, QDialog, QGridLayout, QHBoxLayout, QScrollArea
 from PyQt5.QtCore import Qt
-from commands import read_data_from_json
-import time
-from qasync import asyncSlot
+import sys
+import os
+# 將父目錄加入路徑以便匯入上層模組
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-AREA_FILE_PATH = "area.json"
-DISCRIPTION_FILE_PATH = "discription.txt"
+from core.parsers import get_basic_training_items, load_descriptions
+from core.executors import create_basic_training_executor
 
 def create_basic_training_tab(self):
     """創建基礎訓練標籤頁"""
@@ -16,25 +16,8 @@ def create_basic_training_tab(self):
     # 創建按鈕網格
     button_grid = QGridLayout()
     
-    # 基礎訓練項目
-    basic_trainings = [
-        ("正手高遠球", "sec25_1"),
-        ("反手高遠球", "sec21_1"),
-        ("正手切球", "sec25_1"),
-        ("反手切球", "sec21_1"),
-        ("正手殺球", "sec25_1"),
-        ("反手殺球", "sec21_1"),
-        ("正手平抽球", "sec15_1"),
-        ("反手平抽球", "sec11_1"),
-        ("正手小球", "sec5_1"),
-        ("反手小球", "sec1_1"),
-        ("正手挑球", "sec5_1"),
-        ("反手挑球", "sec1_1"),
-        ("平推球", "sec13_1"),
-        ("正手接殺球", "sec20_1"),
-        ("反手接殺球", "sec16_1"),
-        ("近身接殺", "sec18_1")
-    ]
+    # 取得基礎訓練項目
+    basic_trainings = get_basic_training_items()
     
     # 建立 section 對應名稱，供描述顯示使用
     self.section_to_name = {}
@@ -59,38 +42,9 @@ def select_basic_training(self, section, shot_name=None):
     dialog.setWindowTitle("選擇訓練設置")
     dialog_layout = QVBoxLayout(dialog)
 
-    # 解析 discription.txt 並載入描述
-    def parse_discriptions(file_path):
-        mapping = {}
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                lines = [line.rstrip('\n') for line in f]
-        except Exception:
-            return mapping
-        current_title = None
-        current_block_lines = []
-        def flush_block():
-            if current_title is not None:
-                # 去除尾端空行
-                while current_block_lines and current_block_lines[-1].strip() == "":
-                    current_block_lines.pop()
-                mapping[current_title] = "\n".join(current_block_lines).strip()
-        for line in lines:
-            if line.strip() == "":
-                flush_block()
-                current_title = None
-                current_block_lines = []
-                continue
-            if current_title is None:
-                current_title = line.strip()
-                current_block_lines = []
-            else:
-                current_block_lines.append(line)
-        flush_block()
-        return mapping
-
+    # 載入描述檔案
     if not hasattr(self, 'basic_discription_map'):
-        self.basic_discription_map = parse_discriptions(DISCRIPTION_FILE_PATH)
+        self.basic_discription_map = load_descriptions()
 
     # 顯示描述區塊
     display_name = shot_name or getattr(self, 'section_to_name', {}).get(section, None)
@@ -182,124 +136,33 @@ def select_basic_training(self, section, shot_name=None):
     dialog.show()
 
 async def start_selected_training(self, section, speed, count):
-    """
-    開始選擇的基礎訓練
-    """
-    self.log_message(f"開始訓練: {section}, 速度: {speed}, 發球數量: {count}")
-
-    # 設定間隔時間
-    interval = 4 if speed == "慢" else 3.5 if speed == "正常" else 2.5 if speed == "快" else 1.4  
-    # 設定發球次數
-    num_shots = 10 if count == "10顆" else 20 if count == "20顆" else 30
-
-    # UI 狀態（與課程頁面一致）
-    self.start_training_button.setEnabled(False)
-    self.stop_training_button.setEnabled(True)
-    self.progress_bar.setVisible(True)
-    self.progress_bar.setMaximum(num_shots)
-    self.progress_bar.setValue(0)
-
-    # 開始發球（與手動/單球一致：直接 await 藍牙發送）
-    self.stop_flag = False
-    sent_count = 0
-    try:
-        for _ in range(num_shots):
-            if self.stop_flag:
-                self.log_message("訓練已被停止")
-                break
-            if not self.bluetooth_thread or not self.bluetooth_thread.is_connected:
-                self.log_message("請先連接發球機")
-                break
-            try:
-                await self.bluetooth_thread.send_shot(section)
-            except Exception as e:
-                self.log_message(f"發球失敗: {e}")
-                break
-            sent_count += 1
-            self.log_message(f"已發送 {section} 第 {sent_count} 顆")
-            self.progress_bar.setValue(sent_count)
-            await asyncio.sleep(interval)
-        self.log_message(f"完成 {section} 的訓練，共發送 {sent_count} 顆球")
-    finally:
-        self.start_training_button.setEnabled(True)
-        self.stop_training_button.setEnabled(False)
-        self.progress_bar.setVisible(False)
+    """開始選擇的基礎訓練（UI 層面的處理）"""
+    if not hasattr(self, 'basic_training_executor'):
+        self.basic_training_executor = create_basic_training_executor(self)
+    
+    # 使用執行器處理訓練邏輯
+    self.basic_training_executor.start_selected_training(section, speed, count)
 
         
 
 def practice_specific_shot(self, shot_name, count, interval):
-    """
-    根據用戶的指令，練習特定的擊球項目。
+    """練習特定球種（UI 層面的處理）"""
+    if not hasattr(self, 'basic_training_executor'):
+        self.basic_training_executor = create_basic_training_executor(self)
     
-    :param shot_name: 擊球項目的名稱，例如 "正手平抽球"
-    :param count: 發球的數量
-    :param interval: 每顆球之間的間隔時間（秒）
-    """
-    # 根據 shot_name 找到對應的 section
-    section = self.get_section_by_shot_name(shot_name)
-    if not section:
-        print(f"無法找到擊球項目: {shot_name}")
-        return
-    
-    # 開始練習，確保在發送指定數量的球後停止
-    for i in range(count):
-        self.send_shot_command(section)
-        print(f"已發送 {shot_name} 第 {i+1} 顆")
-        time.sleep(interval)
-    print(f"完成 {shot_name} 的練習，共發送 {count} 顆球")
-    # 確保方法結束後不再發球
-    return
+    self.basic_training_executor.practice_specific_shot(shot_name, count, interval)
 
 def practice_level_programs(self, level, programs_data):
-    """
-    根據用戶的指令，練習特定等級的所有訓練套餐。
+    """練習特定等級的所有訓練套餐（UI 層面的處理）"""
+    if not hasattr(self, 'basic_training_executor'):
+        self.basic_training_executor = create_basic_training_executor(self)
     
-    :param level: 等級，例如 2
-    :param programs_data: 訓練套餐的數據
-    """
-    # 獲取該等級的所有訓練套餐
-    level_key = f"level{level}_basic"
-    if level_key not in programs_data["program_categories"]:
-        print(f"無法找到等級 {level} 的訓練套餐")
-        return
-    
-    # 遍歷並練習每個套餐
-    for program_id in programs_data["program_categories"][level_key]:
-        if program_id in programs_data["training_programs"]:
-            program = programs_data["training_programs"][program_id]
-            print(f"開始練習套餐: {program['name']}")
-            for shot in program['shots']:
-                self.send_shot_command(shot['section'])
-                print(f"已發送 {shot['description']}")
-                time.sleep(shot['delay_seconds'])
+    self.basic_training_executor.practice_level_programs(level, programs_data)
 
 def get_section_by_shot_name(self, shot_name):
-    """
-    將擊球名稱映射到相應的區域代碼。
-    
-    :param shot_name: 擊球項目的名稱
-    :return: 對應的區域代碼
-    """
-    # 更新映射表，確保包含所有擊球名稱
-    shot_to_section_map = {
-        "正手平抽球": "sec15_1",
-        "反手平抽球": "sec11_1",
-        "正手高遠球": "sec25_1",
-        "反手高遠球": "sec21_1",
-        "正手切球": "sec25_1",
-        "反手切球": "sec21_1",
-        "正手殺球": "sec25_1",
-        "反手殺球": "sec21_1",
-        "正手小球": "sec5_1",
-        "反手小球": "sec1_1",
-        "正手挑球": "sec5_1",
-        "反手挑球": "sec1_1",
-        "平推球": "sec13_1",
-        "正手接殺球": "sec20_1",
-        "反手接殺球": "sec16_1",
-        "近身接殺": "sec18_1"
-    }
-    return shot_to_section_map.get(shot_name)
+    """取得球種名稱對應的區域代碼"""
+    from core.parsers import get_section_by_shot_name
+    return get_section_by_shot_name(shot_name)
 
 def send_shot_command(self, section):
     """
