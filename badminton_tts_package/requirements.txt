@@ -1,0 +1,23 @@
+# 羽球發球機語音控制系統依賴套件
+
+# 核心依賴（必裝）
+openai>=1.0.0
+sounddevice>=0.4.0
+scipy>=1.9.0
+numpy>=1.21.0
+
+# 語音處理（建議安裝）
+pydub>=0.25.0
+webrtcvad>=2.0.10
+
+# 繁體中文轉換（建議安裝）
+opencc-python-reimplemented>=0.1.6
+
+# 規則系統（必裝）
+pyyaml>=6.0
+rapidfuzz>=2.0.0
+
+# 注意：此版本僅支援 Whisper API，不包含本地 ASR 功能
+
+# 系統依賴（macOS）
+# brew install ffmpeg portaudio

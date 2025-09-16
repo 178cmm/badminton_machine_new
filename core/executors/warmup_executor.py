@@ -84,17 +84,26 @@ class WarmupExecutor:
         
         # 開始執行熱身
         self.stop_flag = False
-        self.training_task = asyncio.create_task(
+        self.training_task = self.gui.create_async_task(
             self._execute_warmup(sequence, interval, title)
         )
+        
+        # 同步設置主GUI的訓練任務，保持與舊版本一致
+        self.gui.training_task = self.training_task
         
         return True
     
     def stop_warmup(self):
         """停止熱身"""
-        if self.training_task and not self.training_task.done():
-            self.stop_flag = True
-            self.training_task.cancel()
+        self.stop_flag = True
+        try:
+            if self.training_task and not self.training_task.done():
+                self.training_task.cancel()
+            # 調用主GUI的停止方法以確保UI狀態正確更新
+            if hasattr(self.gui, 'stop_training'):
+                self.gui.stop_training()
+        except Exception:
+            pass
     
     def _check_prerequisites(self) -> bool:
         """檢查熱身前置條件"""

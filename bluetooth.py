@@ -92,12 +92,14 @@ class BluetoothThread(QThread):
         try:
             self.client = BleakClient(address)
             await self.client.connect()
-            self.is_connected = await self.client.is_connected()
+            self.is_connected = self.client.is_connected
             if self.is_connected:
                 self.connection_status.emit(True, f"已連接到 {address}")
             else:
+                self.is_connected = False
                 self.connection_status.emit(False, "連接失敗")
         except Exception as e:
+            self.is_connected = False
             self.connection_status.emit(False, f"連接錯誤: {e}")
     
     async def send_shot(self, area_section):

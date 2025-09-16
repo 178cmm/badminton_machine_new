@@ -1,0 +1,158 @@
+# Badminton Training Machine Rules Configuration (English)
+globals:
+  default_voice: "nova"
+  fuzzy_threshold: 85
+
+rules:
+  - id: "wake_up"
+    priority: 100
+    match:
+      contains: ["hey assistant", "assistant", "badminton assistant", "training assistant", "hey"]
+    reply:
+      text: "Hello! I'm your smart badminton training assistant. What would you like to practice today?"
+      voice: "nova"
+    action: "wake_up"
+
+  - id: "start_training"
+    priority: 90
+    match:
+      contains: ["start", "begin", "start training", "start practice", "start serving"]
+    reply:
+      text: "Great! Starting badminton training. The serving machine is now active, get ready to receive!"
+      voice: "nova"
+    action: "start_training"
+
+  - id: "stop_training"
+    priority: 90
+    match:
+      contains: ["stop", "pause", "stop training", "stop practice", "stop serving"]
+    reply:
+      text: "Training stopped. The serving machine is now off."
+      voice: "nova"
+    action: "stop_training"
+
+  - id: "adjust_speed_fast"
+    priority: 80
+    match:
+      contains: ["fast", "faster", "high speed", "quick", "speed up"]
+    reply:
+      text: "Switched to fast serving mode. Watch out for the balls!"
+      voice: "nova"
+    action: "set_speed_fast"
+
+  - id: "adjust_speed_slow"
+    priority: 80
+    match:
+      contains: ["slow", "slower", "low speed", "slow down"]
+    reply:
+      text: "Switched to slow serving mode. Perfect for beginners."
+      voice: "nova"
+    action: "set_speed_slow"
+
+  - id: "adjust_angle_left"
+    priority: 75
+    match:
+      contains: ["left", "left side", "angle left", "move left"]
+    reply:
+      text: "Adjusting angle to the left side."
+      voice: "nova"
+    action: "set_angle_left"
+
+  - id: "adjust_angle_right"
+    priority: 75
+    match:
+      contains: ["right", "right side", "angle right", "move right"]
+    reply:
+      text: "Adjusting angle to the right side."
+      voice: "nova"
+    action: "set_angle_right"
+
+  - id: "adjust_angle_center"
+    priority: 75
+    match:
+      contains: ["center", "middle", "straight", "center angle"]
+    reply:
+      text: "Adjusting angle to center position."
+      voice: "nova"
+    action: "set_angle_center"
+
+  - id: "set_ball_count"
+    priority: 70
+    match:
+      contains: ["balls", "ball count", "how many balls", "ball number"]
+    reply:
+      text: "You have {balls_left} balls remaining in the machine."
+      voice: "nova"
+    action: "check_ball_count"
+
+  - id: "training_mode_basic"
+    priority: 65
+    match:
+      contains: ["basic", "beginner", "basic training", "easy mode"]
+    reply:
+      text: "Switched to basic training mode. Perfect for learning fundamentals."
+      voice: "nova"
+    action: "set_mode_basic"
+
+  - id: "training_mode_advanced"
+    priority: 65
+    match:
+      contains: ["advanced", "expert", "advanced training", "hard mode"]
+    reply:
+      text: "Switched to advanced training mode. Challenge yourself!"
+      voice: "nova"
+    action: "set_mode_advanced"
+
+  - id: "training_mode_reaction"
+    priority: 65
+    match:
+      contains: ["reaction", "reaction training", "quick response", "reflex"]
+    reply:
+      text: "Switched to reaction training mode. Improve your reflexes!"
+      voice: "nova"
+    action: "set_mode_reaction"
+
+  - id: "check_status"
+    priority: 60
+    match:
+      contains: ["status", "how is it", "what's happening", "current status"]
+    reply:
+      text: "Current status: Training active, {balls_left} balls remaining, speed: medium."
+      voice: "nova"
+    action: "check_status"
+
+  - id: "help"
+    priority: 50
+    match:
+      contains: ["help", "what can you do", "commands", "instructions"]
+    reply:
+      text: "I can help you with badminton training! Try saying: start, stop, fast, slow, left, right, or ask about ball count."
+      voice: "nova"
+    action: "show_help"
+
+  - id: "goodbye"
+    priority: 40
+    match:
+      contains: ["goodbye", "bye", "see you", "end session", "finish"]
+    reply:
+      text: "Great training session! See you next time. Keep practicing!"
+      voice: "nova"
+    action: "end_session"
+
+  - id: "encouragement"
+    priority: 30
+    match:
+      contains: ["good", "great", "excellent", "well done", "nice shot"]
+    reply:
+      text: "Keep up the great work! You're improving with each shot."
+      voice: "nova"
+    action: "encourage"
+
+  - id: "frustration"
+    priority: 30
+    match:
+      contains: ["difficult", "hard", "tough", "struggling", "can't do it"]
+    reply:
+      text: "Don't give up! Practice makes perfect. Try adjusting the speed or angle."
+      voice: "nova"
+    action: "motivate"

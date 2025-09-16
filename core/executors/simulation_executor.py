@@ -45,11 +45,8 @@ class SimulationExecutor:
     def _load_area_data(self):
         """載入發球區域數據"""
         try:
-            # 優先使用 hit_area.json，如果不存在則使用 area.json
-            if os.path.exists("hit_area.json"):
-                self.json_data = read_data_from_json("hit_area.json")
-            else:
-                self.json_data = read_data_from_json("area.json")
+            # 使用 area.json 載入發球區域數據
+            self.json_data = read_data_from_json("area.json")
             
             if not self.json_data:
                 self.gui.log_message("❌ 無法載入發球區域數據")
@@ -95,9 +92,12 @@ class SimulationExecutor:
                 self.previous_sec = None
                 
                 # 開始訓練任務
-                self.training_task = asyncio.create_task(
+                self.training_task = self.gui.create_async_task(
                     self._run_simulation(difficulty, interval, serve_type)
                 )
+                
+                # 同步設置主GUI的訓練任務，保持與舊版本一致
+                self.gui.training_task = self.training_task
                 
                 return True
             
@@ -148,6 +148,10 @@ class SimulationExecutor:
             # 停止雙發球機模擬
             if hasattr(self.gui, 'dual_machine_executor'):
                 self.gui.dual_machine_executor.stop_dual_simulation()
+            
+            # 調用主GUI的停止方法以確保UI狀態正確更新
+            if hasattr(self.gui, 'stop_training'):
+                self.gui.stop_training()
             
             self.gui.log_message("🛑 模擬對打已停止")
             return True
@@ -241,7 +245,9 @@ class SimulationExecutor:
         # 根據是否已有前一個發球區域來選擇當前區域
         if self.previous_sec is None:
             # 如果沒有前一個發球區域，隨機分配一個區域
-            current_sec = f'sec{random.randint(1, 25)}'
+            sec_num = random.randint(1, 25)
+            sec_type = random.randint(1, 2)
+            current_sec = f'sec{sec_num}_{sec_type}'
         else:
             # 如果有前一個發球區域，使用它作為當前區域
             current_sec = self.previous_sec
@@ -307,19 +313,30 @@ class SimulationExecutor:
         try:
             self.gui.log_message("🚀 模擬對打開始")
             
+            # 初始化統計數據
+            shot_count = 0
+            start_time = time.time()
+            
+            # 更新狀態為運行中
+            self._update_simulation_status("運行中", f"發球次數: {shot_count} | 運行時間: 00:00")
+            
             while not self.stop_flag:
                 # 生成發球區域
                 current_sec, next_sec = self._generate_pitch_areas(difficulty)
                 
-                # 獲取發球參數
-                params = self._get_params_from_zone(current_sec, serve_type)
-                if not params:
-                    await asyncio.sleep(1)
-                    continue
-                
                 # 發送發球指令
-                await self._send_shot_command(params)
+                await self._send_shot_command(current_sec)
                 self.gui.log_message(f"🎯 發球區域: {current_sec}")
+                
+                # 更新統計數據
+                shot_count += 1
+                elapsed_time = int(time.time() - start_time)
+                minutes = elapsed_time // 60
+                seconds = elapsed_time % 60
+                time_str = f"{minutes:02d}:{seconds:02d}"
+                
+                # 更新狀態顯示
+                self._update_simulation_status("運行中", f"發球次數: {shot_count} | 運行時間: {time_str}")
                 
                 # 等待發球完成
                 await self._wait_for_shot_completion()
@@ -333,24 +350,38 @@ class SimulationExecutor:
                 # 準備下一球
                 self.gui.log_message(f"🔄 準備下一球: {next_sec}")
             
+            # 更新最終狀態
+            elapsed_time = int(time.time() - start_time)
+            minutes = elapsed_time // 60
+            seconds = elapsed_time % 60
+            time_str = f"{minutes:02d}:{seconds:02d}"
+            self._update_simulation_status("已結束", f"發球次數: {shot_count} | 運行時間: {time_str}")
             self.gui.log_message("✅ 模擬對打結束")
             
         except asyncio.CancelledError:
+            self._update_simulation_status("已停止", f"發球次數: {shot_count} | 運行時間: {time_str}")
             self.gui.log_message("🛑 模擬對打被取消")
         except Exception as e:
+            self._update_simulation_status("錯誤", f"發球次數: {shot_count} | 運行時間: {time_str}")
             self.gui.log_message(f"❌ 模擬對打執行錯誤: {e}")
+        finally:
+            # 清理狀態
+            self._cleanup_simulation()
     
-    async def _send_shot_command(self, params: bytearray):
+    async def _send_shot_command(self, area_section: str):
         """
         發送發球指令
         
         Args:
-            params: 發球參數
+            area_section: 發球區域代碼
         """
         try:
             if self.bluetooth_thread and self.bluetooth_thread.is_connected:
-                await self.bluetooth_thread.send_shot_command(params)
-                self.gui.log_message("✅ 發球指令已發送")
+                result = await self.bluetooth_thread.send_shot(area_section)
+                if result:
+                    self.gui.log_message("✅ 發球指令已發送")
+                else:
+                    self.gui.log_message("❌ 發球指令發送失敗")
             else:
                 self.gui.log_message("❌ 發球機未連接")
         except Exception as e:
@@ -367,6 +398,83 @@ class SimulationExecutor:
                 await asyncio.sleep(2)
         except Exception as e:
             self.gui.log_message(f"❌ 等待發球完成失敗: {e}")
+    
+    def _update_simulation_status(self, status: str, stats: str = ""):
+        """
+        更新模擬對打狀態
+        
+        Args:
+            status: 狀態文字
+            stats: 統計信息
+        """
+        try:
+            # 調用GUI的狀態更新函數
+            if hasattr(self.gui, 'update_simulation_status'):
+                self.gui.update_simulation_status(status, stats)
+            else:
+                # 如果沒有專用函數，直接更新UI元素
+                if hasattr(self.gui, 'simulation_status_label'):
+                    self.gui.simulation_status_label.setText(status)
+                    
+                    # 根據狀態更新顏色
+                    if "運行中" in status or "對打中" in status:
+                        self.gui.simulation_status_label.setStyleSheet("""
+                            QLabel {
+                                font-size: 14px;
+                                color: #4CAF50;
+                                font-weight: bold;
+                                padding: 5px 10px;
+                                background-color: rgba(76, 175, 80, 0.2);
+                                border-radius: 5px;
+                                border: 1px solid #4CAF50;
+                            }
+                        """)
+                    elif "停止" in status or "結束" in status:
+                        self.gui.simulation_status_label.setStyleSheet("""
+                            QLabel {
+                                font-size: 14px;
+                                color: #f44336;
+                                font-weight: bold;
+                                padding: 5px 10px;
+                                background-color: rgba(244, 67, 54, 0.2);
+                                border-radius: 5px;
+                                border: 1px solid #f44336;
+                            }
+                        """)
+                    else:
+                        self.gui.simulation_status_label.setStyleSheet("""
+                            QLabel {
+                                font-size: 14px;
+                                color: #ff9800;
+                                font-weight: bold;
+                                padding: 5px 10px;
+                                background-color: rgba(255, 152, 0, 0.2);
+                                border-radius: 5px;
+                                border: 1px solid #ff9800;
+                            }
+                        """)
+                
+                if hasattr(self.gui, 'simulation_stats_label') and stats:
+                    self.gui.simulation_stats_label.setText(stats)
+        except Exception as e:
+            self.gui.log_message(f"❌ 更新狀態失敗: {e}")
+    
+    def _cleanup_simulation(self):
+        """清理模擬對打狀態"""
+        try:
+            # 更新按鈕狀態
+            if hasattr(self.gui, 'simulation_start_button'):
+                self.gui.simulation_start_button.setEnabled(True)
+            if hasattr(self.gui, 'simulation_stop_button'):
+                self.gui.simulation_stop_button.setEnabled(False)
+            
+            # 更新 GUI 的訓練任務狀態
+            if hasattr(self.gui, 'training_task'):
+                self.gui.training_task = None
+            
+            self.training_task = None
+        except Exception as e:
+            self.gui.log_message(f"❌ 清理狀態失敗: {e}")
 
 
 def create_simulation_executor(gui_instance) -> SimulationExecutor:

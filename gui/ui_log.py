@@ -26,13 +26,24 @@ def log_message(self, message):
     from datetime import datetime
     timestamp = datetime.now().strftime("%H:%M:%S")
     line = f"[{timestamp}] {message}"
-    self.log_text.append(line)
-    self.log_text.ensureCursorVisible()
+    
+    try:
+        self.log_text.append(line)
+        # 使用更安全的方式滾動到底部
+        cursor = self.log_text.textCursor()
+        cursor.movePosition(cursor.End)
+        self.log_text.setTextCursor(cursor)
+    except Exception as e:
+        print(f"日誌記錄錯誤: {e}")
+    
     # 若文本控制頁面存在聊天視窗，鏡像輸出到同頁聊天區
     try:
         if hasattr(self, 'text_chat_log') and self.text_chat_log is not None:
             self.text_chat_log.append(f"系統: {message}")
-            self.text_chat_log.ensureCursorVisible()
+            # 使用更安全的方式滾動到底部
+            cursor = self.text_chat_log.textCursor()
+            cursor.movePosition(cursor.End)
+            self.text_chat_log.setTextCursor(cursor)
     except Exception:
         pass
 

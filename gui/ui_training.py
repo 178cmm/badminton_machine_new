@@ -31,15 +31,75 @@ def create_basic_training_tab(self):
     # 建立 section 對應名稱，供描述顯示使用
     self.section_to_name = {}
 
-    # 創建按鈕
+    # 創建按鈕 - 恢復原本的配色和排版
     for i, (name, section) in enumerate(basic_trainings):
         self.section_to_name[section] = name
         button = QPushButton(name)
         button.clicked.connect(lambda checked, s=section, n=name: self.select_basic_training(s, n))
-        row, col = divmod(i, 4)  # 4列
+        row, col = divmod(i, 4)  # 恢復原本的4列布局
         button_grid.addWidget(button, row, col)
     
     scroll_layout.addLayout(button_grid)
+    
+    # 添加進度條區域
+    progress_group = QGroupBox("訓練進度")
+    progress_group.setStyleSheet("""
+        QGroupBox {
+            font-size: 12px;
+            font-weight: bold;
+            color: #ffffff;
+            border: 1px solid #555555;
+            border-radius: 5px;
+            margin-top: 5px;
+            padding-top: 5px;
+            background-color: #3c3c3c;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 8px;
+            padding: 0 3px 0 3px;
+            color: #4CAF50;
+        }
+    """)
+    progress_layout = QVBoxLayout(progress_group)
+    progress_layout.setContentsMargins(5, 5, 5, 5)  # 減少內邊距
+    progress_layout.setSpacing(3)  # 減少間距
+    
+    # 進度條
+    self.basic_training_progress_bar = QProgressBar()
+    self.basic_training_progress_bar.setVisible(False)
+    self.basic_training_progress_bar.setMaximumHeight(15)  # 設定最大高度為15px
+    self.basic_training_progress_bar.setStyleSheet("""
+        QProgressBar {
+            border: 1px solid #555555;
+            border-radius: 3px;
+            text-align: center;
+            background-color: #2b2b2b;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 10px;
+        }
+        QProgressBar::chunk {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #4CAF50, stop:1 #45a049);
+            border-radius: 2px;
+        }
+    """)
+    progress_layout.addWidget(self.basic_training_progress_bar)
+    
+    # 進度文字標籤
+    self.basic_training_progress_label = QLabel("")
+    self.basic_training_progress_label.setStyleSheet("""
+        QLabel {
+            color: #ffffff;
+            font-size: 12px;
+            padding: 5px;
+        }
+    """)
+    self.basic_training_progress_label.setVisible(False)
+    progress_layout.addWidget(self.basic_training_progress_label)
+    
+    scroll_layout.addWidget(progress_group)
     
     # 設置滾動區域
     scroll_area.setWidget(scroll_widget)
@@ -135,16 +195,20 @@ def select_basic_training(self, section, shot_name=None):
 
         # 禁用確認鍵避免重複觸發，並啟動訓練任務
         confirm_button.setEnabled(False)
-        self.training_task = asyncio.create_task(self.start_selected_training(section, selected_speed, selected_count))
-
-        # 任務結束後恢復確認鍵狀態
-        def _restore_after_done(_):
-            try:
-                confirm_button.setEnabled(True)
-            except Exception:
-                pass
-
-        self.training_task.add_done_callback(_restore_after_done)
+        
+        # 創建基礎訓練執行器並啟動訓練
+        if not hasattr(self, 'basic_training_executor'):
+            self.basic_training_executor = create_basic_training_executor(self)
+        
+        # 使用執行器啟動訓練
+        success = self.basic_training_executor.start_selected_training(section, selected_speed, selected_count)
+        
+        if success:
+            # 設置訓練任務引用
+            self.training_task = self.basic_training_executor.training_task
+        else:
+            # 如果啟動失敗，恢復按鈕狀態
+            confirm_button.setEnabled(True)
 
     confirm_button.clicked.connect(on_confirm_start)
 
@@ -202,7 +266,7 @@ def send_shot_command(self, section):
         return
     
     # 調用 BluetoothThread 的 send_shot 方法
-    asyncio.create_task(self.bluetooth_thread.send_shot(section))
+    self.create_async_task(self.bluetooth_thread.send_shot(section))
     self.log_message(f"發送指令到區域: {section}")
 
 def create_area_buttons(self, layout, start_sec, end_sec):
@@ -367,16 +431,27 @@ async def start_training(self):
         if not section:
             self.log_message("所選球路資料有誤")
             return
-        # 直接沿用基礎訓練的已驗證流程（建立任務，不在此 await）
+        # 使用基礎訓練執行器處理單一球路
         self.log_message(f"開始執行單一球路: {current_program_id.get('description', section)} | 速度:{speed_text} | 間隔:{interval_override}s | 球數:{balls_override}")
         speed_label = speed_text if speed_text else "正常"
         count_label = count_text if count_text else "10顆"
-        self.training_task = asyncio.create_task(self.start_selected_training(section, speed_label, count_label))
+        
+        # 創建基礎訓練執行器並啟動訓練
+        if not hasattr(self, 'basic_training_executor'):
+            self.basic_training_executor = create_basic_training_executor(self)
+        
+        # 使用執行器啟動訓練
+        success = self.basic_training_executor.start_selected_training(section, speed_label, count_label)
+        
+        if success:
+            # 設置訓練任務引用
+            self.training_task = self.basic_training_executor.training_task
         return
     else:
         # 套餐模式
         program = self.programs_data["training_programs"][current_program_id]
-        # 保留原套餐模式（若未來需要整套執行）
+        
+        # 設置UI狀態
         self.start_training_button.setEnabled(False)
         self.stop_training_button.setEnabled(True)
         self.progress_bar.setVisible(True)
@@ -384,7 +459,9 @@ async def start_training(self):
         self.progress_bar.setMaximum(program['repeat_times'])
         self.progress_bar.setValue(0)
         self.log_message(f"開始執行: {program['name']}")
-        self.training_task = asyncio.create_task(self.execute_training(program))
+        
+        # 直接使用execute_training方法
+        self.training_task = self.create_async_task(self.execute_training(program, interval_override, balls_override))
 
     # 執行訓練
     if hasattr(self, 'training_task') and self.training_task is not None:

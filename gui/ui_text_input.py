@@ -33,7 +33,6 @@ def create_text_input_tab(self):
         border: 2px solid qlineargradient(x1:0, y1:0, x2:1, y2:0,
             stop:0 #ff1493, stop:0.5 #c71585, stop:1 #ff1493);
         letter-spacing: 1px;
-        text-shadow: 0 0 8px rgba(255, 20, 147, 0.5);
         margin-bottom: 10px;
     """)
     scroll_layout.addWidget(title_label)
@@ -91,9 +90,10 @@ def create_text_input_tab(self):
         }
         QLineEdit:focus {
             border: 2px solid #33ddff;
-            box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
         }
     """)
+    # 連接Enter鍵事件
+    self.text_input.returnPressed.connect(self.execute_text_command)
     scroll_layout.addWidget(self.text_input)
 
     self.execute_button = QPushButton("🚀 AI 執行指令")
@@ -113,7 +113,6 @@ def create_text_input_tab(self):
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                 stop:0 #ff69b4, stop:0.5 #da70d6, stop:1 #ff69b4);
             border: 2px solid #ff69b4;
-            box-shadow: 0 0 15px rgba(255, 20, 147, 0.5);
         }
     """)
     self.execute_button.clicked.connect(self.execute_text_command)

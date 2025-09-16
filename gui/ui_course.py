@@ -36,9 +36,20 @@ def create_training_tab(self):
     
     # 套餐描述
     self.program_description = QTextEdit()
-    self.program_description.setMaximumHeight(80)  # 減少高度以適應小螢幕
-    self.program_description.setMinimumHeight(60)
+    self.program_description.setMaximumHeight(150)  # 增加高度讓文字更容易閱讀
+    self.program_description.setMinimumHeight(100)  # 增加最小高度
     self.program_description.setReadOnly(True)
+    self.program_description.setStyleSheet("""
+        QTextEdit {
+            font-size: 13px;
+            line-height: 1.4;
+            padding: 8px;
+            background-color: #2b2b2b;
+            color: #ffffff;
+            border: 1px solid #555555;
+            border-radius: 4px;
+        }
+    """)
     program_layout.addWidget(QLabel("套餐描述: "))
     program_layout.addWidget(self.program_description)
     

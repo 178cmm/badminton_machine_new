@@ -28,18 +28,25 @@ class ShotZoneSelector:
                 # 只取這一層的「邊界」
                 if layer == 0 or abs(r - row) == bound or abs(c - col) == bound:
                     sec_num = r * self.grid_size + c + 1
-                    neighbors.append(f"sec{sec_num}")
+                    # 隨機選擇類型1或2
+                    sec_type = random.randint(1, 2)
+                    neighbors.append(f"sec{sec_num}_{sec_type}")
         return neighbors
 
     def get_available_targets(self, current_sec, difficulty):
         if difficulty not in self.probability_settings:
             raise ValueError("Difficulty must be 0 ~ 3")
 
-        # 把 'sec12' 中的 'sec' 字串移除，變成 '12'
+        # 把 'sec12_1' 或 'sec12' 中的 'sec' 字串移除，變成 '12'
         try:
-            sec_num = int(current_sec.replace('sec', ''))
+            # 處理 'sec12_1' 格式，提取數字部分
+            sec_part = current_sec.replace('sec', '')
+            if '_' in sec_part:
+                sec_num = int(sec_part.split('_')[0])
+            else:
+                sec_num = int(sec_part)
         except:
-            raise ValueError("Invalid section format. Expected 'sec<number>'")
+            raise ValueError("Invalid section format. Expected 'sec<number>' or 'sec<number>_<type>'")
 
         #檢查是否在合法範圍（1 ~ 25）：
         if not (1 <= sec_num <= self.max_section):

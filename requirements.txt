@@ -5,3 +5,13 @@ pyobjc-core; sys_platform == "darwin"
 pyobjc-framework-CoreBluetooth; sys_platform == "darwin"
 vosk
 sounddevice
+
+# 新的 TTS 語音控制系統依賴
+openai>=1.0.0
+scipy>=1.9.0
+numpy>=1.21.0
+pydub>=0.25.0
+webrtcvad>=2.0.10
+opencc-python-reimplemented>=0.1.6
+pyyaml>=6.0
+rapidfuzz>=2.0.0

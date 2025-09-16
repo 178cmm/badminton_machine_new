@@ -64,9 +64,12 @@ class BasicTrainingExecutor:
         
         # 開始執行訓練
         self.stop_flag = False
-        self.training_task = asyncio.create_task(
+        self.training_task = self.gui.create_async_task(
             self._execute_training(section, interval, num_shots, display_name)
         )
+        
+        # 同步設置主GUI的訓練任務，保持與舊版本一致
+        self.gui.training_task = self.training_task
         
         return True
     
@@ -99,7 +102,7 @@ class BasicTrainingExecutor:
             try:
                 # 發送發球命令
                 if hasattr(self.gui, 'bluetooth_thread') and self.gui.bluetooth_thread:
-                    asyncio.create_task(self.gui.bluetooth_thread.send_shot(section))
+                    self.gui.create_async_task(self.gui.bluetooth_thread.send_shot(section))
                 else:
                     self.gui.log_message("藍牙連接不可用")
                     return False
@@ -143,7 +146,7 @@ class BasicTrainingExecutor:
                     try:
                         # 發送發球命令
                         if hasattr(self.gui, 'bluetooth_thread') and self.gui.bluetooth_thread:
-                            asyncio.create_task(self.gui.bluetooth_thread.send_shot(shot['section']))
+                            self.gui.create_async_task(self.gui.bluetooth_thread.send_shot(shot['section']))
                         else:
                             self.gui.log_message("藍牙連接不可用")
                             return False
@@ -158,9 +161,15 @@ class BasicTrainingExecutor:
     
     def stop_training(self):
         """停止訓練"""
-        if self.training_task and not self.training_task.done():
-            self.stop_flag = True
-            self.training_task.cancel()
+        self.stop_flag = True
+        try:
+            if self.training_task and not self.training_task.done():
+                self.training_task.cancel()
+            # 調用主GUI的停止方法以確保UI狀態正確更新
+            if hasattr(self.gui, 'stop_training'):
+                self.gui.stop_training()
+        except Exception:
+            pass
     
     def _check_prerequisites(self) -> bool:
         """檢查訓練前置條件"""
@@ -180,10 +189,16 @@ class BasicTrainingExecutor:
     
     def _setup_progress_bar(self, total_shots: int):
         """設定進度條"""
-        if hasattr(self.gui, 'progress_bar'):
-            self.gui.progress_bar.setMaximum(total_shots)
-            self.gui.progress_bar.setValue(0)
-            self.gui.progress_bar.setVisible(True)
+        # 使用基礎訓練專用的進度條
+        if hasattr(self.gui, 'basic_training_progress_bar'):
+            self.gui.basic_training_progress_bar.setMaximum(total_shots)
+            self.gui.basic_training_progress_bar.setValue(0)
+            self.gui.basic_training_progress_bar.setVisible(True)
+        
+        # 顯示進度文字標籤
+        if hasattr(self.gui, 'basic_training_progress_label'):
+            self.gui.basic_training_progress_label.setText(f"準備開始訓練，共 {total_shots} 顆球")
+            self.gui.basic_training_progress_label.setVisible(True)
         
         # 更新按鈕狀態
         if hasattr(self.gui, 'start_training_button'):
@@ -215,8 +230,12 @@ class BasicTrainingExecutor:
                 self.gui.log_message(f"已發送 {section} 第 {sent_count} 顆")
                 
                 # 更新進度條
-                if hasattr(self.gui, 'progress_bar'):
-                    self.gui.progress_bar.setValue(sent_count)
+                if hasattr(self.gui, 'basic_training_progress_bar'):
+                    self.gui.basic_training_progress_bar.setValue(sent_count)
+                
+                # 更新進度文字
+                if hasattr(self.gui, 'basic_training_progress_label'):
+                    self.gui.basic_training_progress_label.setText(f"已發送 {sent_count}/{num_shots} 顆球")
                 
                 await asyncio.sleep(interval)
             
@@ -238,8 +257,10 @@ class BasicTrainingExecutor:
             self.gui.stop_training_button.setEnabled(False)
         
         # 隱藏進度條
-        if hasattr(self.gui, 'progress_bar'):
-            self.gui.progress_bar.setVisible(False)
+        if hasattr(self.gui, 'basic_training_progress_bar'):
+            self.gui.basic_training_progress_bar.setVisible(False)
+        if hasattr(self.gui, 'basic_training_progress_label'):
+            self.gui.basic_training_progress_label.setVisible(False)
         
         # 更新 GUI 的訓練任務狀態
         if hasattr(self.gui, 'training_task'):

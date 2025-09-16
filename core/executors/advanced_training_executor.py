@@ -59,17 +59,26 @@ class AdvancedTrainingExecutor:
         
         # 開始執行訓練
         self.stop_flag = False
-        self.training_task = asyncio.create_task(
+        self.training_task = self.gui.create_async_task(
             self._execute_advanced_training(title, specs, interval, balls)
         )
+        
+        # 同步設置主GUI的訓練任務，保持與舊版本一致
+        self.gui.training_task = self.training_task
         
         return True
     
     def stop_advanced_training(self):
         """停止進階訓練"""
-        if self.training_task and not self.training_task.done():
-            self.stop_flag = True
-            self.training_task.cancel()
+        self.stop_flag = True
+        try:
+            if self.training_task and not self.training_task.done():
+                self.training_task.cancel()
+            # 調用主GUI的停止方法以確保UI狀態正確更新
+            if hasattr(self.gui, 'stop_training'):
+                self.gui.stop_training()
+        except Exception:
+            pass
     
     def _check_prerequisites(self) -> bool:
         """檢查訓練前置條件"""

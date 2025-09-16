@@ -45,6 +45,9 @@ class BluetoothManager:
             self.bluetooth_thread.shot_sent.connect(self._on_shot_sent)
             self.bluetooth_thread.error_occurred.connect(self._on_error)
             
+            # 將藍牙線程設置到主 GUI 類別中
+            self.gui.bluetooth_thread = self.bluetooth_thread
+            
             # 開始掃描
             await self.bluetooth_thread.find_device()
             
@@ -83,7 +86,19 @@ class BluetoothManager:
             # 執行連接
             await self.bluetooth_thread.connect_device(address)
             
-            return True
+            # 等待一下讓連接狀態信號有時間處理
+            await asyncio.sleep(0.5)
+            
+            # 檢查連接狀態
+            if self.bluetooth_thread.is_connected:
+                self.gui.log_message(f"成功連接到 {address}")
+                return True
+            else:
+                self.gui.log_message(f"連接失敗：無法連接到 {address}")
+                # 恢復 UI 狀態
+                if hasattr(self.gui, 'connect_button'):
+                    self.gui.connect_button.setEnabled(True)
+                return False
             
         except Exception as e:
             self.gui.log_message(f"連接失敗: {e}")
@@ -150,12 +165,16 @@ class BluetoothManager:
     def _on_connection_status(self, connected: bool, message: str):
         """連接狀態回調"""
         try:
-            if connected:
-                self._update_ui_connected()
+            # 使用主 GUI 的狀態更新方法
+            if hasattr(self.gui, 'update_connection_status'):
+                self.gui.update_connection_status(connected, message)
             else:
-                self._update_ui_disconnected()
-            
-            self.gui.log_message(message)
+                # 後備方案：直接更新 UI
+                if connected:
+                    self._update_ui_connected()
+                else:
+                    self._update_ui_disconnected()
+                self.gui.log_message(message)
             
         except Exception as e:
             self.gui.log_message(f"處理連接狀態事件時發生錯誤: {e}")
@@ -177,18 +196,6 @@ class BluetoothManager:
     def _update_ui_connected(self):
         """更新 UI 為已連接狀態"""
         try:
-            # 更新狀態標籤
-            if hasattr(self.gui, 'status_label'):
-                self.gui.status_label.setText("已連接")
-                self.gui.status_label.setStyleSheet("""
-                    padding: 8px;
-                    background-color: #44ff44;
-                    color: white;
-                    border-radius: 5px;
-                    font-weight: bold;
-                    border: 1px solid #00cc00;
-                """)
-            
             # 更新按鈕狀態
             if hasattr(self.gui, 'connect_button'):
                 self.gui.connect_button.setEnabled(False)
@@ -203,18 +210,6 @@ class BluetoothManager:
     def _update_ui_disconnected(self):
         """更新 UI 為未連接狀態"""
         try:
-            # 更新狀態標籤
-            if hasattr(self.gui, 'status_label'):
-                self.gui.status_label.setText("未連接")
-                self.gui.status_label.setStyleSheet("""
-                    padding: 8px;
-                    background-color: #ff4444;
-                    color: white;
-                    border-radius: 5px;
-                    font-weight: bold;
-                    border: 1px solid #cc0000;
-                """)
-            
             # 更新按鈕狀態
             if hasattr(self.gui, 'connect_button'):
                 self.gui.connect_button.setEnabled(True)

@@ -66,46 +66,27 @@ class BadmintonLauncherGUI(QMainWindow):
             loop = asyncio.get_running_loop()
             return loop.create_task(coro)
         except RuntimeError:
-            # 如果沒有運行的事件循環，使用線程執行
-            import threading
-            import concurrent.futures
-            
-            def run_in_thread():
-                try:
-                    asyncio.run(coro)
-                except Exception as e:
-                    print(f"異步任務執行錯誤: {e}")
-            
-            # 創建一個 Future 對象來模擬任務
-            future = concurrent.futures.Future()
-            thread = threading.Thread(target=lambda: (run_in_thread(), future.set_result(None)), daemon=True)
-            thread.start()
-            
-            # 返回一個包裝的任務對象
-            class ThreadTask:
-                def __init__(self, future):
-                    self._future = future
-                
-                def add_done_callback(self, callback):
-                    def wrapper(f):
-                        callback(f)
-                    self._future.add_done_callback(wrapper)
-                
-                def done(self):
-                    return self._future.done()
-                
-                def cancel(self):
-                    return self._future.cancel()
-            
-            return ThreadTask(future)
+            # 如果沒有運行的事件循環，嘗試使用主循環
+            if hasattr(self, 'loop') and self.loop:
+                return self.loop.create_task(coro)
+            else:
+                # 最後的後備方案：直接創建任務
+                import asyncio
+                return asyncio.create_task(coro)
 
     def init_ui(self):
         """初始化使用者介面"""
-        # 設定視窗標題和大小
-        self.setWindowTitle("🤖 AI 羽毛球發球機控制系統 v2.0")
-        # 設定最小尺寸並使用螢幕尺寸的80%作為初始大小
         from PyQt5.QtWidgets import QDesktopWidget
         from PyQt5.QtCore import Qt
+        
+        # 設定視窗標題和大小
+        self.setWindowTitle("🤖 AI 羽毛球發球機控制系統 v2.0")
+        
+        # 設定視窗屬性以避免重繪問題
+        self.setAttribute(Qt.WA_OpaquePaintEvent, True)
+        self.setAttribute(Qt.WA_NoSystemBackground, False)
+        
+        # 設定最小尺寸並使用螢幕尺寸的80%作為初始大小
         desktop = QDesktopWidget()
         screen_rect = desktop.screenGeometry()
         width = int(screen_rect.width() * 0.8)

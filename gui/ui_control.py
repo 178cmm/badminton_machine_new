@@ -85,13 +85,11 @@ def create_manual_tab(self):
                 border: 2px solid #ff6b35;
                 border-radius: 10px;
                 min-width: 80px;
-                text-shadow: 0 0 5px rgba(255, 107, 53, 0.5);
             }
             QPushButton:hover {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 #ff8c5a, stop:0.5 #ffaa44, stop:1 #ff8c5a);
                 border: 2px solid #ff8c5a;
-                box-shadow: 0 0 15px rgba(255, 107, 53, 0.6);
             }
             QPushButton:pressed {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,

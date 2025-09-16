@@ -91,7 +91,7 @@ class CourseExecutor:
         """掃描發球機"""
         try:
             if hasattr(self.gui, 'scan_devices'):
-                asyncio.create_task(self.gui.scan_devices())
+                self.gui.create_async_task(self.gui.scan_devices())
             return True
         except Exception as e:
             self.gui.log_message(f"掃描設備時發生錯誤: {str(e)}")
@@ -101,7 +101,7 @@ class CourseExecutor:
         """連接當前選擇的發球機"""
         try:
             if hasattr(self.gui, 'connect_device'):
-                asyncio.create_task(self.gui.connect_device())
+                self.gui.create_async_task(self.gui.connect_device())
             return True
         except Exception as e:
             self.gui.log_message(f"連接設備時發生錯誤: {str(e)}")
@@ -111,7 +111,7 @@ class CourseExecutor:
         """斷開當前連線"""
         try:
             if hasattr(self.gui, 'disconnect_device'):
-                asyncio.create_task(self.gui.disconnect_device())
+                self.gui.create_async_task(self.gui.disconnect_device())
             return True
         except Exception as e:
             self.gui.log_message(f"斷開連接時發生錯誤: {str(e)}")

@@ -1,0 +1,239 @@
+# 羽球發球機規則配置檔案
+globals:
+  default_voice: "nova"
+  fuzzy_threshold: 85
+
+rules:
+  - id: "wake_up"
+    priority: 100
+    match:
+      contains: ["嘿發球機", "發球機", "球機", "羽球機", "小羽"]
+    reply:
+      text: "彥澤您好，我是你的智慧羽球發球機助理，今天想練什麼呢？"
+      voice: "nova"
+    action: "wake_up"
+
+  - id: "start_training"
+    priority: 90
+    match:
+      contains: ["開始", "啟動", "開始訓練", "開始練習", "開始發球"]
+    reply:
+      text: "好的，開始羽球訓練！發球機已啟動，準備接球！"
+      voice: "nova"
+    action: "start_training"
+
+  - id: "stop_training"
+    priority: 90
+    match:
+      contains: ["停止", "暫停", "停止訓練", "停止練習", "停止發球"]
+    reply:
+      text: "訓練已停止，發球機已關閉。"
+      voice: "nova"
+    action: "stop_training"
+
+  - id: "adjust_speed_fast"
+    priority: 80
+    match:
+      contains: ["快速", "高速", "超快", "極速", "加快速度"]
+    reply:
+      text: "已調整為快速發球模式，請注意接球！"
+      voice: "nova"
+    action: "set_speed_fast"
+
+  - id: "adjust_speed_slow"
+    priority: 80
+    match:
+      contains: ["慢速", "低速", "超慢", "減慢速度"]
+    reply:
+      text: "已調整為慢速發球模式，適合初學者練習。"
+      voice: "nova"
+    action: "set_speed_slow"
+
+  - id: "adjust_speed_medium"
+    priority: 80
+    match:
+      contains: ["中速", "中等速度", "標準速度"]
+    reply:
+      text: "已調整為中速發球模式，適合一般練習。"
+      voice: "nova"
+    action: "set_speed_medium"
+
+  - id: "front_court_training"
+    priority: 70
+    match:
+      contains: ["前場", "網前", "前場練習", "網前練習"]
+    reply:
+      text: "開始前場練習，發球機將發送網前球，請準備接球！"
+      voice: "nova"
+    action: "front_court_training"
+
+  - id: "back_court_training"
+    priority: 70
+    match:
+      contains: ["後場", "後場練習", "底線練習"]
+    reply:
+      text: "開始後場練習，發球機將發送後場球，請準備接球！"
+      voice: "nova"
+    action: "back_court_training"
+
+  - id: "smash_training"
+    priority: 70
+    match:
+      contains: ["殺球", "殺球練習", "扣殺", "重殺"]
+    reply:
+      text: "開始殺球練習，發球機將發送高球供您練習殺球！"
+      voice: "nova"
+    action: "smash_training"
+
+  - id: "drop_shot_training"
+    priority: 70
+    match:
+      contains: ["吊球", "吊球練習", "輕吊", "劈吊"]
+    reply:
+      text: "開始吊球練習，發球機將發送高球供您練習吊球！"
+      voice: "nova"
+    action: "drop_shot_training"
+
+  - id: "serve_practice"
+    priority: 70
+    match:
+      contains: ["發球", "發球練習", "練習發球"]
+    reply:
+      text: "開始發球練習，請準備發球！"
+      voice: "nova"
+    action: "serve_practice"
+
+  - id: "multi_ball_training"
+    priority: 60
+    match:
+      contains: ["多球", "多球練習", "連續發球"]
+    reply:
+      text: "開始多球練習，發球機將連續發球，請準備接球！"
+      voice: "nova"
+    action: "multi_ball_training"
+
+  - id: "single_ball_training"
+    priority: 60
+    match:
+      contains: ["單球", "單球練習", "間隔發球"]
+    reply:
+      text: "開始單球練習，發球機將間隔發球，請準備接球！"
+      voice: "nova"
+    action: "single_ball_training"
+
+  - id: "adjust_angle_left"
+    priority: 50
+    match:
+      contains: ["左邊", "左側", "左轉", "向左"]
+    reply:
+      text: "已調整發球角度向左，請注意接球位置！"
+      voice: "nova"
+    action: "adjust_angle_left"
+
+  - id: "adjust_angle_right"
+    priority: 50
+    match:
+      contains: ["右邊", "右側", "右轉", "向右"]
+    reply:
+      text: "已調整發球角度向右，請注意接球位置！"
+      voice: "nova"
+    action: "adjust_angle_right"
+
+  - id: "adjust_angle_center"
+    priority: 50
+    match:
+      contains: ["中間", "中央", "正中間"]
+    reply:
+      text: "已調整發球角度到中間，請注意接球位置！"
+      voice: "nova"
+    action: "adjust_angle_center"
+
+  - id: "adjust_height_up"
+    priority: 50
+    match:
+      contains: ["提高", "上升", "調高", "向上"]
+    reply:
+      text: "已提高發球高度，請注意接球位置！"
+      voice: "nova"
+    action: "adjust_height_up"
+
+  - id: "adjust_height_down"
+    priority: 50
+    match:
+      contains: ["降低", "下降", "調低", "向下"]
+    reply:
+      text: "已降低發球高度，請注意接球位置！"
+      voice: "nova"
+    action: "adjust_height_down"
+
+  - id: "straight_line_training"
+    priority: 40
+    match:
+      contains: ["直線", "直線球", "直線練習"]
+    reply:
+      text: "開始直線球練習，發球機將發送直線球！"
+      voice: "nova"
+    action: "straight_line_training"
+
+  - id: "diagonal_training"
+    priority: 40
+    match:
+      contains: ["斜線", "對角", "斜線球", "對角球"]
+    reply:
+      text: "開始斜線球練習，發球機將發送斜線球！"
+      voice: "nova"
+    action: "diagonal_training"
+
+  - id: "forehand_training"
+    priority: 40
+    match:
+      contains: ["正手", "正手練習", "正手球"]
+    reply:
+      text: "開始正手練習，發球機將發送正手球！"
+      voice: "nova"
+    action: "forehand_training"
+
+  - id: "backhand_training"
+    priority: 40
+    match:
+      contains: ["反手", "反手練習", "反手球"]
+    reply:
+      text: "開始反手練習，發球機將發送反手球！"
+      voice: "nova"
+    action: "backhand_training"
+
+  - id: "warm_up"
+    priority: 30
+    match:
+      contains: ["熱身", "準備活動", "熱身練習"]
+    reply:
+      text: "開始熱身練習，發球機將發送輕球供您熱身！"
+      voice: "nova"
+    action: "warm_up"
+
+  - id: "end_training"
+    priority: 20
+    match:
+      contains: ["結束", "結束訓練", "結束練習", "完成", "結束"]
+    reply:
+      text: "訓練結束，發球機已關閉。辛苦了，彥澤！"
+      voice: "nova"
+    action: "end_training"
+
+  - id: "thank_you"
+    priority: 10
+    match:
+      contains: ["謝謝", "感謝", "辛苦了"]
+    reply:
+      text: "不客氣，彥澤！隨時為您服務！"
+      voice: "nova"
+    action: "thank_you"
+
+  - id: "goodbye"
+    priority: 10
+    match:
+      contains: ["再見", "拜拜", "結束", "離開"]
+    reply:
+      text: "再見，彥澤！期待下次為您服務！"
+      voice: "nova"
+    action: "goodbye"

@@ -1,0 +1,80 @@
+version: 1
+globals:
+  fuzzy_threshold: 86         # 模糊比對靈敏度（0-100，越高越嚴格）
+  default_voice: alloy
+
+rules:
+  - id: wake
+    priority: 1000
+    match:
+      contains: ["嘿發球機", "嗨發球機", "嘿 發 球 機"]
+    reply:
+      text: "彥澤您好，我是你的智慧發球機助理，今天想練什麼呢？"
+      voice: alloy
+    action: WAKE
+    stop: true
+
+  - id: pause
+    priority: 900
+    match:
+      contains: ["暫停", "停止", "先停一下", "先暫停一下"]
+      regex: []                # 若暫不需正則可留空
+      fuzzy: []                # 若要補齊口語/誤聽字可放在這裡
+    reply:
+      text: "已為你暫停。"
+    action: PAUSE_MACHINE
+    stop: true
+
+  - id: start
+    priority: 900
+    match:
+      contains: ["開始", "開始練習", "啟動", "準備好了"]
+    reply:
+      text: "練習即將開始，請注意來球！"
+    action: START_PROGRAM
+    stop: true
+
+  - id: faster
+    priority: 800
+    match:
+      contains: ["快一點", "加速", "再快", "速度提高"]
+    reply:
+      text: "好的，我把速度調快一級。"
+    action: SPEED_UP
+    stop: true
+
+  - id: slower
+    priority: 800
+    match:
+      contains: ["慢一點", "減速", "再慢", "速度降低"]
+    reply:
+      text: "收到，我把速度調慢一級。"
+    action: SLOW_DOWN
+    stop: true
+
+  - id: status
+    priority: 700
+    match:
+      contains: ["現在狀態", "進度如何", "剩幾顆球", "報告狀態"]
+    reply:
+      text: "目前運作正常，剩餘球數 {balls_left} 顆。"
+    action: REPORT_STATUS
+    stop: true
+
+  - id: help
+    priority: 600
+    match:
+      contains: ["幫助", "說明", "怎麼用", "功能"]
+    reply:
+      text: "我可以幫你控制發球機：開始、暫停、調整速度、查看狀態。直接說出指令即可！"
+    action: SHOW_HELP
+    stop: true
+
+  - id: thanks
+    priority: 500
+    match:
+      contains: ["謝謝", "感謝", "辛苦了"]
+    reply:
+      text: "不客氣！繼續加油練習！"
+    action: ACKNOWLEDGE
+    stop: true

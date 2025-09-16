@@ -49,20 +49,20 @@ def create_connection_tab(self):
 
 def on_scan_button_clicked(self):
     """掃描按鈕點擊事件（UI 層面的處理）"""
-    import asyncio
-    asyncio.create_task(self.bluetooth_manager.scan_devices())
+    # 使用安全的方法創建異步任務
+    self.create_async_task(self.bluetooth_manager.scan_devices())
 
 def on_connect_button_clicked(self):
     """連接按鈕點擊事件（UI 層面的處理）"""
-    import asyncio
     address = self.device_combo.currentData()
     if address:
-        asyncio.create_task(self.bluetooth_manager.connect_device(address))
+        # 使用安全的方法創建異步任務
+        self.create_async_task(self.bluetooth_manager.connect_device(address))
 
 def on_disconnect_button_clicked(self):
     """斷開按鈕點擊事件（UI 層面的處理）"""
-    import asyncio
-    asyncio.create_task(self.bluetooth_manager.disconnect_device())
+    # 使用安全的方法創建異步任務
+    self.create_async_task(self.bluetooth_manager.disconnect_device())
 
 # 為了向後相容，保留這些函數名稱
 async def scan_devices(self, checked=False):

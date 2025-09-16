@@ -48,7 +48,6 @@ def create_simulation_tab(self):
             border: 3px solid qlineargradient(x1:0, y1:0, x2:1, y2:0,
                 stop:0 #00ff88, stop:0.5 #00d4ff, stop:1 #00ff88);
             letter-spacing: 1px;
-            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
         }
     """)
     scroll_layout.addWidget(title_label)
@@ -262,7 +261,6 @@ def _create_settings_group(self):
             border-radius: 3px;
         }
         QCheckBox::indicator:checked:after {
-            content: "✓";
             color: white;
             font-weight: bold;
         }

@@ -47,11 +47,8 @@ class DualMachineExecutor:
     def _load_area_data(self):
         """載入發球區域數據"""
         try:
-            # 優先使用 hit_area.json，如果不存在則使用 area.json
-            if os.path.exists("hit_area.json"):
-                self.json_data = read_data_from_json("hit_area.json")
-            else:
-                self.json_data = read_data_from_json("area.json")
+            # 使用 area.json 載入發球區域數據
+            self.json_data = read_data_from_json("area.json")
             
             if not self.json_data:
                 self.gui.log_message("❌ 無法載入發球區域數據")
@@ -89,9 +86,12 @@ class DualMachineExecutor:
             self.previous_sec = None
             
             # 開始訓練任務
-            self.training_task = asyncio.create_task(
+            self.training_task = self.gui.create_async_task(
                 self._run_dual_simulation(difficulty, interval, serve_type)
             )
+            
+            # 同步設置主GUI的訓練任務，保持與舊版本一致
+            self.gui.training_task = self.training_task
             
             return True
             
@@ -111,6 +111,10 @@ class DualMachineExecutor:
             
             if self.training_task and not self.training_task.done():
                 self.training_task.cancel()
+            
+            # 調用主GUI的停止方法以確保UI狀態正確更新
+            if hasattr(self.gui, 'stop_training'):
+                self.gui.stop_training()
             
             self.gui.log_message("🛑 雙發球機模擬對打已停止")
             return True
@@ -210,7 +214,9 @@ class DualMachineExecutor:
         # 根據是否已有前一個發球區域來選擇當前區域
         if self.previous_sec is None:
             # 如果沒有前一個發球區域，隨機分配一個區域
-            current_sec = f'sec{random.randint(1, 25)}'
+            sec_num = random.randint(1, 25)
+            sec_type = random.randint(1, 2)
+            current_sec = f'sec{sec_num}_{sec_type}'
         else:
             # 如果有前一個發球區域，使用它作為當前區域
             current_sec = self.previous_sec
@@ -288,16 +294,8 @@ class DualMachineExecutor:
                 # 生成發球區域
                 current_sec, next_sec = self._generate_pitch_areas(difficulty)
                 
-                # 獲取雙發球機發球參數
-                params_serv = self._get_params_from_zone_dual(current_sec, serve_type, self.current_machine)
-                params_wait = self._get_params_from_zone_dual(next_sec, serve_type, 1 - self.current_machine)
-                
-                if not params_serv or not params_wait:
-                    await asyncio.sleep(1)
-                    continue
-                
                 # 發送發球指令 (目前使用單發球機)
-                await self._send_dual_shot_command(params_serv, params_wait)
+                await self._send_dual_shot_command(current_sec)
                 self.gui.log_message(f"🎯 發球機 {self.current_machine} 發球區域: {current_sec}")
                 self.gui.log_message(f"🎯 發球機 {1 - self.current_machine} 預備區域: {next_sec}")
                 
@@ -323,21 +321,23 @@ class DualMachineExecutor:
         except Exception as e:
             self.gui.log_message(f"❌ 雙發球機模擬對打執行錯誤: {e}")
     
-    async def _send_dual_shot_command(self, params_serv: bytearray, params_wait: bytearray):
+    async def _send_dual_shot_command(self, area_section: str):
         """
         發送雙發球機發球指令 (功能保留)
         
         Args:
-            params_serv: 發球機參數
-            params_wait: 預備機參數
+            area_section: 發球區域代碼
         """
         try:
             # 目前專案尚未開發到雙發球機階段
             # 此功能保留供後續開發
             # 目前只發送發球機的指令
             if self.bluetooth_threads and len(self.bluetooth_threads) > 0:
-                await self.bluetooth_threads[0].send_shot_command(params_serv)
-                self.gui.log_message("✅ 發球指令已發送 (單發球機模式)")
+                result = await self.bluetooth_threads[0].send_shot(area_section)
+                if result:
+                    self.gui.log_message("✅ 發球指令已發送 (單發球機模式)")
+                else:
+                    self.gui.log_message("❌ 發球指令發送失敗")
             else:
                 self.gui.log_message("❌ 發球機未連接")
         except Exception as e:

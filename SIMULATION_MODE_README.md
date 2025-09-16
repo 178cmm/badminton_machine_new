@@ -49,7 +49,7 @@
 - **DualMachineExecutor**: 雙發球機執行器 (功能保留)
 
 ### 數據結構
-- **hit_area.json**: 發球區域參數配置
+- **area.json**: 發球區域參數配置
 - **serve_types_one**: 單發球機球路類型
 - **serve_types_left/right**: 雙發球機球路類型 (功能保留)
 
