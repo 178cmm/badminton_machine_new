@@ -13,6 +13,33 @@ rules:
       voice: "nova"
     action: "wake_up"
 
+  - id: "scan_device"
+    priority: 95
+    match:
+      contains: ["掃描發球機", "掃描", "搜尋發球機", "搜索發球機", "搜索", "搜尋"]
+    reply:
+      text: "開始掃描發球機，請稍候..."
+      voice: "nova"
+    action: "scan_device"
+
+  - id: "connect_device"
+    priority: 95
+    match:
+      contains: ["連接", "連線", "配對", "連接發球機"]
+    reply:
+      text: "開始連接發球機，請稍候..."
+      voice: "nova"
+    action: "connect_device"
+
+  - id: "disconnect_device"
+    priority: 95
+    match:
+      contains: ["斷開", "解除連接", "取消配對", "斷線", "斷開發球機"]
+    reply:
+      text: "正在斷開發球機連接..."
+      voice: "nova"
+    action: "disconnect_device"
+
   - id: "start_training"
     priority: 90
     match:

@@ -136,9 +136,51 @@ def create_voice_tab(self):
     
     scroll_layout.addWidget(voice_settings_group)
 
+    # 狀態顯示區
+    status_group = QGroupBox("📊 系統狀態")
+    status_layout = QVBoxLayout(status_group)
+    
+    # 當前狀態標籤
+    self.voice_status_label = QLabel("🔴 語音控制未啟動")
+    self.voice_status_label.setStyleSheet("""
+        QLabel {
+            color: #ff6b6b;
+            font-weight: bold;
+            font-size: 14px;
+            padding: 8px;
+            background-color: rgba(255, 107, 107, 0.1);
+            border: 1px solid #ff6b6b;
+            border-radius: 5px;
+        }
+    """)
+    status_layout.addWidget(self.voice_status_label)
+    
+    # 處理狀態標籤
+    self.processing_status_label = QLabel("💤 等待語音輸入...")
+    self.processing_status_label.setStyleSheet("""
+        QLabel {
+            color: #4ecdc4;
+            font-weight: bold;
+            font-size: 12px;
+            padding: 6px;
+            background-color: rgba(78, 205, 196, 0.1);
+            border: 1px solid #4ecdc4;
+            border-radius: 5px;
+        }
+    """)
+    status_layout.addWidget(self.processing_status_label)
+    
+    scroll_layout.addWidget(status_group)
+
     # 對話/日誌視窗（顯示辨識與系統訊息）
     log_group = QGroupBox("💬 語音對話記錄")
     log_layout = QVBoxLayout(log_group)
+    
+    # 添加對話標題
+    chat_title = QLabel("🎤 語音識別 ↔ 🤖 AI回覆")
+    chat_title.setStyleSheet("color: #ffffff; font-weight: bold; font-size: 13px; margin-bottom: 5px;")
+    log_layout.addWidget(chat_title)
+    
     self.voice_chat_log = QTextEdit()
     self.voice_chat_log.setReadOnly(True)
     self.voice_chat_log.setMinimumHeight(200)
@@ -150,6 +192,7 @@ def create_voice_tab(self):
             border-radius: 5px;
             font-family: 'Consolas', 'Monaco', monospace;
             font-size: 12px;
+            line-height: 1.4;
         }
     """)
     log_layout.addWidget(self.voice_chat_log)
@@ -196,47 +239,9 @@ def create_voice_tab(self):
     control_layout.addWidget(self.voice_start_button)
     control_layout.addWidget(self.voice_stop_button)
     
-    # 添加手動錄音按鈕（簡化版）
-    self.manual_record_button = QPushButton("🎤 開始錄音（簡化版）")
-    self.manual_record_button.setStyleSheet("""
-        QPushButton {
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                stop:0 #2196F3, stop:1 #1976D2);
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 5px;
-            font-weight: bold;
-        }
-        QPushButton:hover {
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                stop:0 #1976D2, stop:1 #2196F3);
-        }
-    """)
-    control_layout.addWidget(self.manual_record_button)
-    
-    # 添加強制重置按鈕（調試用）
-    self.force_reset_button = QPushButton("🔄 強制重置狀態")
-    self.force_reset_button.setStyleSheet("""
-        QPushButton {
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                stop:0 #FF9800, stop:1 #F57C00);
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 5px;
-            font-weight: bold;
-        }
-        QPushButton:hover {
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                stop:0 #F57C00, stop:1 #FF9800);
-        }
-    """)
-    control_layout.addWidget(self.force_reset_button)
-    
-    # 模式說明
-    mode_info = QLabel("💡 如果遇到閃退問題，請使用「簡化版」手動錄音模式")
-    mode_info.setStyleSheet("color: #ffcc00; font-size: 11px;")
+    # 使用說明
+    mode_info = QLabel("💡 語音控制已優化，支援VAD自動偵測和智能回覆")
+    mode_info.setStyleSheet("color: #4ecdc4; font-size: 11px;")
     mode_info.setWordWrap(True)
     control_layout.addWidget(mode_info)
     
@@ -414,90 +419,11 @@ def create_voice_tab(self):
         except Exception as e:
             self.voice_chat_log.append(f"⚠️ 停止語音控制時發生錯誤：{e}")
     
-    def _manual_record():
-        """手動錄音（簡化版）"""
-        # 檢查 API Key
-        if not os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY") == "你的key":
-            self.voice_chat_log.append("❌ 請先設定 OpenAI API Key")
-            return
-        
-        device_idx = self.voice_device_combo.currentData()
-        
-        # 使用現有的語音控制進行單次錄音
-        try:
-            from voice_control_tts import VoiceControlTTS, VoiceConfig
-            
-            # 配置設定
-            config = VoiceConfig()
-            config.default_voice = self.tts_voice_combo.currentText()
-            config.enable_tts = self.enable_tts_checkbox.isChecked()
-            config.enable_rules = self.enable_rules_checkbox.isChecked()
-            config.safe_mode = True  # 使用安全模式
-            
-            # 創建臨時語音控制實例
-            temp_voice_control = VoiceControlTTS(self, config)
-            if device_idx is not None:
-                temp_voice_control.set_input_device(device_idx)
-            
-            # 開始錄音和處理
-            def record_and_process():
-                try:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    
-                    # 執行單次錄音和識別
-                    async def single_record():
-                        try:
-                            # 錄音
-                            audio_data = await temp_voice_control._record_audio_simple()
-                            if not audio_data:
-                                self.voice_chat_log.append("⚠️ 錄音失敗")
-                                return
-                            
-                            # 語音識別
-                            text = await temp_voice_control._transcribe_audio(audio_data)
-                            if not text.strip():
-                                self.voice_chat_log.append("⚠️ 語音識別結果為空")
-                                return
-                            
-                            self.voice_chat_log.append(f"🎤 識別結果：{text}")
-                            
-                            # 處理指令
-                            await temp_voice_control._process_command(text)
-                            
-                        except Exception as e:
-                            self.voice_chat_log.append(f"❌ 錄音處理失敗：{e}")
-                    
-                    loop.run_until_complete(single_record())
-                    loop.close()
-                except Exception as e:
-                    self.voice_chat_log.append(f"❌ 錄音處理失敗：{e}")
-            
-            import threading
-            record_thread = threading.Thread(target=record_and_process, daemon=True)
-            record_thread.start()
-            self.voice_chat_log.append("🎤 開始錄音處理...")
-            
-        except Exception as e:
-            self.voice_chat_log.append(f"❌ 手動錄音失敗：{e}")
-    
-    def _force_reset():
-        """強制重置語音控制狀態"""
-        try:
-            if hasattr(self, 'voice_control_tts') and self.voice_control_tts is not None:
-                self.voice_control_tts.force_reset()
-                self.voice_chat_log.append("🔄 語音控制狀態已強制重置")
-            else:
-                self.voice_chat_log.append("⚠️ 沒有找到語音控制實例")
-        except Exception as e:
-            self.voice_chat_log.append(f"❌ 強制重置失敗：{e}")
 
     # 綁定按鈕事件
     self.api_key_save_button.clicked.connect(_save_api_key)
     self.voice_start_button.clicked.connect(_start_voice)
     self.voice_stop_button.clicked.connect(_stop_voice)
-    self.manual_record_button.clicked.connect(_manual_record)
-    self.force_reset_button.clicked.connect(_force_reset)
     
     # 快取管理事件
     def _save_cache():
@@ -538,4 +464,163 @@ def create_voice_tab(self):
 
     # 加入標籤頁
     self.tab_widget.addTab(voice_widget, "語音控制")
+
+
+# 添加狀態更新方法到主GUI類別
+def update_voice_status(self, status: str, status_type: str = "main"):
+    """更新語音控制狀態顯示"""
+    try:
+        if status_type == "main":
+            # 主要狀態（啟動/停止）
+            if "啟動" in status or "運行" in status:
+                self.voice_status_label.setText(f"🟢 {status}")
+                self.voice_status_label.setStyleSheet("""
+                    QLabel {
+                        color: #51cf66;
+                        font-weight: bold;
+                        font-size: 14px;
+                        padding: 8px;
+                        background-color: rgba(81, 207, 102, 0.1);
+                        border: 1px solid #51cf66;
+                        border-radius: 5px;
+                    }
+                """)
+            elif "停止" in status or "未啟動" in status:
+                self.voice_status_label.setText(f"🔴 {status}")
+                self.voice_status_label.setStyleSheet("""
+                    QLabel {
+                        color: #ff6b6b;
+                        font-weight: bold;
+                        font-size: 14px;
+                        padding: 8px;
+                        background-color: rgba(255, 107, 107, 0.1);
+                        border: 1px solid #ff6b6b;
+                        border-radius: 5px;
+                    }
+                """)
+            else:
+                self.voice_status_label.setText(f"🟡 {status}")
+                self.voice_status_label.setStyleSheet("""
+                    QLabel {
+                        color: #ffd43b;
+                        font-weight: bold;
+                        font-size: 14px;
+                        padding: 8px;
+                        background-color: rgba(255, 212, 59, 0.1);
+                        border: 1px solid #ffd43b;
+                        border-radius: 5px;
+                    }
+                """)
+        elif status_type == "processing":
+            # 處理狀態
+            if "ASR" in status or "轉錄" in status:
+                self.processing_status_label.setText(f"🎤 {status}")
+                self.processing_status_label.setStyleSheet("""
+                    QLabel {
+                        color: #74c0fc;
+                        font-weight: bold;
+                        font-size: 12px;
+                        padding: 6px;
+                        background-color: rgba(116, 192, 252, 0.1);
+                        border: 1px solid #74c0fc;
+                        border-radius: 5px;
+                    }
+                """)
+            elif "LLM" in status or "分析" in status:
+                self.processing_status_label.setText(f"🧠 {status}")
+                self.processing_status_label.setStyleSheet("""
+                    QLabel {
+                        color: #ff8cc8;
+                        font-weight: bold;
+                        font-size: 12px;
+                        padding: 6px;
+                        background-color: rgba(255, 140, 200, 0.1);
+                        border: 1px solid #ff8cc8;
+                        border-radius: 5px;
+                    }
+                """)
+            elif "TTS" in status or "語音合成" in status:
+                self.processing_status_label.setText(f"🔊 {status}")
+                self.processing_status_label.setStyleSheet("""
+                    QLabel {
+                        color: #ffa8a8;
+                        font-weight: bold;
+                        font-size: 12px;
+                        padding: 6px;
+                        background-color: rgba(255, 168, 168, 0.1);
+                        border: 1px solid #ffa8a8;
+                        border-radius: 5px;
+                    }
+                """)
+            elif "等待" in status or "待機" in status:
+                self.processing_status_label.setText(f"💤 {status}")
+                self.processing_status_label.setStyleSheet("""
+                    QLabel {
+                        color: #4ecdc4;
+                        font-weight: bold;
+                        font-size: 12px;
+                        padding: 6px;
+                        background-color: rgba(78, 205, 196, 0.1);
+                        border: 1px solid #4ecdc4;
+                        border-radius: 5px;
+                    }
+                """)
+            else:
+                self.processing_status_label.setText(f"⚙️ {status}")
+                self.processing_status_label.setStyleSheet("""
+                    QLabel {
+                        color: #ffd43b;
+                        font-weight: bold;
+                        font-size: 12px;
+                        padding: 6px;
+                        background-color: rgba(255, 212, 59, 0.1);
+                        border: 1px solid #ffd43b;
+                        border-radius: 5px;
+                    }
+                """)
+    except Exception as e:
+        print(f"更新語音狀態時發生錯誤：{e}")
+
+
+def add_voice_chat_message(self, message: str, message_type: str = "system"):
+    """添加語音對話訊息到聊天記錄"""
+    try:
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        
+        if message_type == "user":
+            # 用戶語音輸入
+            formatted_message = f"[{timestamp}] 🎤 您說：{message}"
+            self.voice_chat_log.append(formatted_message)
+        elif message_type == "ai":
+            # AI回覆
+            formatted_message = f"[{timestamp}] 🤖 AI回覆：{message}"
+            self.voice_chat_log.append(formatted_message)
+        elif message_type == "system":
+            # 系統訊息
+            formatted_message = f"[{timestamp}] ⚙️ 系統：{message}"
+            self.voice_chat_log.append(formatted_message)
+        elif message_type == "error":
+            # 錯誤訊息
+            formatted_message = f"[{timestamp}] ❌ 錯誤：{message}"
+            self.voice_chat_log.append(formatted_message)
+        else:
+            # 一般訊息
+            formatted_message = f"[{timestamp}] {message}"
+            self.voice_chat_log.append(formatted_message)
+        
+        # 自動滾動到底部（避免QTextCursor線程問題）
+        try:
+            cursor = self.voice_chat_log.textCursor()
+            cursor.movePosition(cursor.End)
+            self.voice_chat_log.setTextCursor(cursor)
+        except Exception:
+            # 如果游標操作失敗，使用簡單的滾動方法
+            self.voice_chat_log.ensureCursorVisible()
+        
+    except Exception as e:
+        print(f"添加語音聊天訊息時發生錯誤：{e}")
+
+
+# 這些方法將在main_gui.py中動態添加到BadmintonLauncherGUI類別
 

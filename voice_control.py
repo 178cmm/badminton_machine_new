@@ -414,6 +414,15 @@ class VoiceControl:
             self._execute_simulation_command(parsed)
         elif parsed.get("type") == "stop_simulation":
             self._execute_stop_simulation_command()
+        # 處理連線控制指令
+        elif parsed.get("type") == "scan":
+            self._execute_scan_command()
+        elif parsed.get("type") == "connect":
+            self._execute_connect_command()
+        elif parsed.get("type") == "disconnect":
+            self._execute_disconnect_command()
+        elif parsed.get("type") == "stop":
+            self._execute_stop_command()
         else:
             # 啟動非阻塞的發球流程（避免與既有訓練衝突，只送指定顆數）
             if self._execute_task and not self._execute_task.done():
@@ -425,6 +434,11 @@ class VoiceControl:
         simulation_result = self._parse_simulation_command(text)
         if simulation_result:
             return simulation_result
+        
+        # 檢查是否為連線控制指令
+        connection_result = self._parse_connection_command(text)
+        if connection_result:
+            return connection_result
         
         # 找球種（以包含關鍵片段為準）
         shot_name = None
@@ -499,6 +513,30 @@ class VoiceControl:
         for keyword, level in level_keywords.items():
             if keyword in text:
                 return level
+        
+        return None
+
+    def _parse_connection_command(self, text: str) -> Optional[dict]:
+        """解析連線控制指令"""
+        import re
+        
+        # 按優先級順序檢查，避免衝突
+        
+        # 斷開連接指令（優先級最高，避免與"連接"衝突）
+        if re.search(r"(斷開|解除連接|取消配對|斷線)", text):
+            return {"type": "disconnect"}
+        
+        # 掃描發球機指令
+        if re.search(r"(掃描發球機|掃描|搜尋發球機|搜索發球機|搜索|搜尋)", text):
+            return {"type": "scan"}
+        
+        # 連接發球機指令
+        if re.search(r"(連接|連線|配對)", text):
+            return {"type": "connect"}
+        
+        # 停止指令
+        if re.search(r"^(停止|停止訓練|停一下|先停|暫停|停)$", text):
+            return {"type": "stop"}
         
         return None
 
@@ -692,6 +730,51 @@ class VoiceControl:
                 await asyncio.sleep(max(0.2, float(interval)))
         finally:
             self._log_ui(f"語音發球完成：{shot_name} 共 {sent}/{count} 顆。")
+
+    def _execute_scan_command(self):
+        """執行掃描發球機指令"""
+        try:
+            self._log_ui("開始掃描發球機...")
+            if hasattr(self.window, 'scan_devices'):
+                self.window.create_async_task(self.window.scan_devices())
+            else:
+                self._log_ui("掃描功能不可用")
+        except Exception as e:
+            self._log_ui(f"掃描失敗：{e}")
+
+    def _execute_connect_command(self):
+        """執行連接發球機指令"""
+        try:
+            self._log_ui("開始連接發球機...")
+            if hasattr(self.window, 'connect_device'):
+                # connect_device 方法會自動使用當前選擇的設備
+                self.window.create_async_task(self.window.connect_device())
+            else:
+                self._log_ui("連接功能不可用")
+        except Exception as e:
+            self._log_ui(f"連接失敗：{e}")
+
+    def _execute_disconnect_command(self):
+        """執行斷開連接指令"""
+        try:
+            self._log_ui("斷開發球機連接...")
+            if hasattr(self.window, 'disconnect_device'):
+                self.window.create_async_task(self.window.disconnect_device())
+            else:
+                self._log_ui("斷開功能不可用")
+        except Exception as e:
+            self._log_ui(f"斷開失敗：{e}")
+
+    def _execute_stop_command(self):
+        """執行停止指令"""
+        try:
+            self._log_ui("停止訓練...")
+            if hasattr(self.window, 'stop_training'):
+                self.window.stop_training()
+            else:
+                self._log_ui("停止功能不可用")
+        except Exception as e:
+            self._log_ui(f"停止失敗：{e}")
 
     def _log_ui(self, message: str):
         # 優先寫入語音控制頁；其次文本控制；否則退回系統日誌

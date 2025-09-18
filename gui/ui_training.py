@@ -315,7 +315,7 @@ def create_area_buttons(self, layout, start_sec, end_sec):
                         }
                     """)
                 
-                button.clicked.connect(lambda checked, s=section: self.send_single_shot(s))
+                button.clicked.connect(lambda checked, s=section: self.handle_shot_button_click(s))
                 layout.addWidget(button, row, col)
                 
                 col += 1
@@ -337,7 +337,7 @@ def create_shot_buttons(self, layout):
     for section in sorted(area_data["section"].keys()):
         button = QPushButton(section)
         button.setMaximumWidth(120)
-        button.clicked.connect(lambda checked, s=section: self.send_single_shot(s))
+        button.clicked.connect(lambda checked, s=section: self.handle_shot_button_click(s))
         layout.addWidget(button, row, col)
         
         col += 1

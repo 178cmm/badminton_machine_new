@@ -866,14 +866,15 @@ class VoiceControlTTS:
     async def start(self):
         """啟動語音控制"""
         if self._running or self._starting:
-            self._log_ui("⚠️ 語音控制已經在運行中")
+            self._add_chat_message("⚠️ 語音控制已經在運行中", "system")
             return
         
         async with self._start_stop_lock:
             if self._running or self._starting:
-                self._log_ui("⚠️ 語音控制已經在運行中")
+                self._add_chat_message("⚠️ 語音控制已經在運行中", "system")
                 return
             self._starting = True
+            self._update_status("正在啟動語音控制...", "main")
         
         # 檢查依賴
         if not self._check_dependencies():
@@ -909,8 +910,10 @@ class VoiceControlTTS:
             
             # 啟動監聽
             self._listen_task = asyncio.create_task(self._listen_loop())
-            self._log_ui("🎙️ 語音控制已啟動，請開始說話...")
-            self._log_ui(f"🎛️ 當前模式：{self.mode_manager.get_current_mode()}")
+            self._add_chat_message("🎙️ 語音控制已啟動，請開始說話...", "system")
+            self._add_chat_message(f"🎛️ 當前模式：{self.mode_manager.get_current_mode()}", "system")
+            self._update_status("語音控制運行中", "main")
+            self._update_status("等待語音輸入...", "processing")
             
         except Exception as e:
             self._log_ui(f"❌ 啟動語音控制失敗：{e}")
@@ -926,11 +929,12 @@ class VoiceControlTTS:
             self._starting = False
         
         self._running = False
+        self._update_status("正在停止語音控制...", "main")
         
         # 停止預載入系統
         if self.preload_manager:
             self.preload_manager.stop_background_preload()
-            self._log_ui("📋 預載入系統已停止")
+            self._add_chat_message("📋 預載入系統已停止", "system")
         
         # 儲存快取
         if self.reply_cache:
@@ -960,7 +964,9 @@ class VoiceControlTTS:
         self._listen_task = None
         self._capture_task = None
         
-        self._log_ui("🔇 語音控制已停止")
+        self._add_chat_message("🔇 語音控制已停止", "system")
+        self._update_status("語音控制未啟動", "main")
+        self._update_status("等待語音輸入...", "processing")
     
     def force_reset(self):
         """強制重置狀態（用於調試）"""
@@ -1396,6 +1402,7 @@ class VoiceControlTTS:
         if not self.client:
             return ""
         
+        self._update_status("ASR語音轉錄中...", "processing")
         temp_path = None
         try:
             # 檢查音訊數據
@@ -1462,37 +1469,44 @@ class VoiceControlTTS:
     
     async def _process_command(self, text: str):
         """處理語音指令（整合所有新功能）"""
-        self._log_ui(f"🔍 開始處理指令：{text}")
+        # 顯示用戶語音輸入
+        self._add_chat_message(text, "user")
+        self._update_status("LLM分析中...", "processing")
         
         # 1. 檢查模式切換（優先處理）
         mode_switch_reply = self.mode_manager.check_mode_switch(text)
         if mode_switch_reply:
-            self._log_ui(f"🔄 模式切換：{mode_switch_reply}")
+            self._add_chat_message(f"🔄 模式切換：{mode_switch_reply}", "system")
             if self.config.enable_tts:
+                self._update_status("TTS語音合成中...", "processing")
                 await self._speak_text(mode_switch_reply)
+            self._update_status("等待語音輸入...", "processing")
             return
         
         # 2. 檢查快取回覆
         if self.reply_cache:
             cached_reply = self.reply_cache.get_cached_reply(text)
             if cached_reply:
-                self._log_ui("⚡ 使用快取回覆")
-                self._log_ui(f"💬 回覆：{cached_reply}")
+                self._add_chat_message("⚡ 使用快取回覆", "system")
+                self._add_chat_message(cached_reply, "ai")
                 if self.config.enable_tts:
+                    self._update_status("TTS語音合成中...", "processing")
                     await self._speak_text(cached_reply)
                 
                 # 預測後續可能的問題
                 if self.preload_manager:
                     self.reply_cache.predict_and_preload(text, self.conversation_history)
+                self._update_status("等待語音輸入...", "processing")
                 return
         
         # 3. 檢查常用回覆模板
         if self.reply_cache:
             common_reply = self.reply_cache.get_common_reply(text)
             if common_reply:
-                self._log_ui("📋 使用常用回覆模板")
-                self._log_ui(f"💬 回覆：{common_reply}")
+                self._add_chat_message("📋 使用常用回覆模板", "system")
+                self._add_chat_message(common_reply, "ai")
                 if self.config.enable_tts:
+                    self._update_status("TTS語音合成中...", "processing")
                     await self._speak_text(common_reply)
                 
                 # 快取這個回覆
@@ -1501,39 +1515,43 @@ class VoiceControlTTS:
                 # 預測後續可能的問題
                 if self.preload_manager:
                     self.reply_cache.predict_and_preload(text, self.conversation_history)
+                self._update_status("等待語音輸入...", "processing")
                 return
         
         # 4. 檢查喚醒詞
         wake_word = "啟動語音發球機"
         if self._is_wake_word(text, wake_word):
-            self._log_ui(f"🔔 喚醒詞命中：{wake_word}")
+            self._add_chat_message(f"🔔 喚醒詞命中：{wake_word}", "system")
             reply_text = "彥澤您好，我是你的智慧羽球發球機助理，今天想練什麼呢？"
-            self._log_ui(f"💬 回覆：{reply_text}")
+            self._add_chat_message(reply_text, "ai")
             
             # 快取回覆
             if self.reply_cache:
                 self.reply_cache.cache_reply(text, reply_text)
             
             if self.config.enable_tts:
+                self._update_status("TTS語音合成中...", "processing")
                 await self._speak_text(reply_text)
+            self._update_status("等待語音輸入...", "processing")
             return
         
         # 5. 規則匹配
         if self.rule_matcher:
-            self._log_ui("🔍 開始規則匹配...")
+            self._add_chat_message("🔍 開始規則匹配...", "system")
             rule = self.rule_matcher.match(text)
             if rule:
-                self._log_ui(f"✅ 找到匹配規則：{rule.get('id', 'unknown')}")
+                self._add_chat_message(f"✅ 找到匹配規則：{rule.get('id', 'unknown')}", "system")
                 await self._handle_rule_match(rule, text)
                 return
             else:
-                self._log_ui("❌ 沒有找到匹配的規則")
+                self._add_chat_message("❌ 沒有找到匹配的規則", "system")
         else:
-            self._log_ui("⚠️ 規則匹配器未初始化")
+            self._add_chat_message("⚠️ 規則匹配器未初始化", "system")
         
         # 6. LLM 回覆（只有在思考模式下才使用）
         if self.mode_manager.is_think_mode():
-            self._log_ui("🤖 使用 LLM 生成回覆...")
+            self._add_chat_message("🤖 使用 LLM 生成回覆...", "system")
+            self._update_status("LLM思考中...", "processing")
             try:
                 # 使用 LLM 生成回覆
                 system_prompt = "你是羽球發球機助理，請用簡潔的1-2句話回覆。"
@@ -1557,7 +1575,7 @@ class VoiceControlTTS:
                 )
                 
                 reply_text = response.choices[0].message.content.strip()
-                self._log_ui(f"💬 LLM 回覆：{reply_text}")
+                self._add_chat_message(reply_text, "ai")
                 
                 # 快取回覆
                 if self.reply_cache:
@@ -1572,21 +1590,26 @@ class VoiceControlTTS:
                     self.conversation_history = self.conversation_history[-20:]
                 
                 if self.config.enable_tts:
+                    self._update_status("TTS語音合成中...", "processing")
                     await self._speak_text(reply_text)
+                self._update_status("等待語音輸入...", "processing")
                 return
                 
             except Exception as e:
-                self._log_ui(f"❌ LLM 回覆失敗：{e}")
+                self._add_chat_message(f"❌ LLM 回覆失敗：{e}", "error")
         
         # 7. 控制模式下規則不匹配時的回覆
         if self.mode_manager.is_control_mode():
             reply_text = self.mode_manager.get_mismatch_reply()
-            self._log_ui(f"💬 控制模式回覆：{reply_text}")
+            self._add_chat_message(reply_text, "ai")
             if self.config.enable_tts:
+                self._update_status("TTS語音合成中...", "processing")
                 await self._speak_text(reply_text)
         else:
             # 思考模式下也沒有生成回覆
-            self._log_ui("❓ 未識別的指令，請使用明確的羽球訓練指令")
+            self._add_chat_message("❓ 未識別的指令，請使用明確的羽球訓練指令", "system")
+        
+        self._update_status("等待語音輸入...", "processing")
     
     def _is_wake_word(self, text: str, wake_word: str) -> bool:
         """檢查是否為喚醒詞（KWS）"""
@@ -1682,7 +1705,13 @@ class VoiceControlTTS:
         
         try:
             # 根據動作類型執行相應的發球機控制
-            if action == "start_training":
+            if action == "scan_device":
+                await self._scan_device()
+            elif action == "connect_device":
+                await self._connect_device()
+            elif action == "disconnect_device":
+                await self._disconnect_device()
+            elif action == "start_training":
                 await self._start_training()
             elif action == "stop_training":
                 await self._stop_training()
@@ -1700,6 +1729,39 @@ class VoiceControlTTS:
         except Exception as e:
             self._log_ui(f"⚠️ 執行動作失敗：{e}")
     
+    async def _scan_device(self):
+        """掃描發球機"""
+        try:
+            self._log_ui("🔍 開始掃描發球機...")
+            if hasattr(self.window, 'scan_devices'):
+                await self.window.scan_devices()
+            else:
+                self._log_ui("⚠️ 掃描功能不可用")
+        except Exception as e:
+            self._log_ui(f"❌ 掃描失敗：{e}")
+
+    async def _connect_device(self):
+        """連接發球機"""
+        try:
+            self._log_ui("🔗 開始連接發球機...")
+            if hasattr(self.window, 'connect_device'):
+                await self.window.connect_device()
+            else:
+                self._log_ui("⚠️ 連接功能不可用")
+        except Exception as e:
+            self._log_ui(f"❌ 連接失敗：{e}")
+
+    async def _disconnect_device(self):
+        """斷開發球機連接"""
+        try:
+            self._log_ui("❌ 斷開發球機連接...")
+            if hasattr(self.window, 'disconnect_device'):
+                await self.window.disconnect_device()
+            else:
+                self._log_ui("⚠️ 斷開功能不可用")
+        except Exception as e:
+            self._log_ui(f"❌ 斷開失敗：{e}")
+
     async def _start_training(self):
         """開始訓練"""
         if not hasattr(self.window, 'bluetooth_thread') or not self.window.bluetooth_thread:
@@ -1778,6 +1840,39 @@ class VoiceControlTTS:
                 
         except Exception as e:
             print(f"日誌記錄失敗：{e}")
+    
+    def _update_status(self, status: str, status_type: str = "processing"):
+        """更新狀態顯示"""
+        try:
+            # 直接在當前線程中更新UI，避免QTimer問題
+            if hasattr(self.window, "update_voice_status"):
+                try:
+                    self.window.update_voice_status(status, status_type)
+                except Exception as e:
+                    print(f"狀態更新失敗：{e}")
+                
+        except Exception as e:
+            print(f"狀態更新異常：{e}")
+    
+    def _add_chat_message(self, message: str, message_type: str = "system"):
+        """添加聊天訊息"""
+        try:
+            # 直接在當前線程中更新UI，避免QTimer問題
+            if hasattr(self.window, "add_voice_chat_message"):
+                try:
+                    self.window.add_voice_chat_message(message, message_type)
+                except Exception as e:
+                    print(f"聊天訊息更新失敗：{e}")
+                    # 回退到舊的日誌方法
+                    self._log_ui(message)
+            else:
+                # 回退到舊的日誌方法
+                self._log_ui(message)
+                
+        except Exception as e:
+            print(f"聊天訊息更新異常：{e}")
+            # 確保至少能在終端看到訊息
+            self._log_ui(message)
 
 
 # === 日誌系統 ===
