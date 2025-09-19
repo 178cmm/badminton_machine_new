@@ -50,8 +50,10 @@
 
 ### 數據結構
 - **area.json**: 發球區域參數配置
-- **serve_types_one**: 單發球機球路類型
-- **serve_types_left/right**: 雙發球機球路類型 (功能保留)
+- **section**: 通用發球區域參數
+- **left_machine**: 左發球機專用參數
+- **right_machine**: 右發球機專用參數
+- **serve_types_one**: 單發球機球路類型 (可選)
 
 ## 等級詳細說明
 
@@ -80,7 +82,7 @@
 
 ### 技術實現
 - **DualMachineExecutor**: 雙發球機執行器
-- **serve_types_left/right**: 左右發球機參數配置
+- **left_machine/right_machine**: 左右發球機專用參數配置
 - 輪流發球機制
 - 預備位置設定
 

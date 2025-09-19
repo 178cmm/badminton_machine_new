@@ -22,6 +22,33 @@ class BluetoothManager:
         self.gui = gui_instance
         self.bluetooth_thread: Optional[BluetoothThread] = None
         self.target_name_prefix = "YX-BE241"
+        self.machine_position = "center"  # 預設為中央位置
+    
+    def set_machine_position(self, position: str):
+        """
+        設定發球機位置
+        
+        Args:
+            position: 發球機位置 ("center", "left", "right")
+        """
+        if position in ["center", "left", "right"]:
+            self.machine_position = position
+            self.gui.log_message(f"📍 發球機位置已設定為: {position}")
+            
+            # 如果藍牙線程已連接，更新其位置設定
+            if self.bluetooth_thread and hasattr(self.bluetooth_thread, 'set_machine_position'):
+                self.bluetooth_thread.set_machine_position(position)
+        else:
+            self.gui.log_message(f"❌ 無效的發球機位置: {position}")
+    
+    def get_machine_position(self) -> str:
+        """
+        獲取當前發球機位置
+        
+        Returns:
+            當前發球機位置
+        """
+        return self.machine_position
     
     async def scan_devices(self) -> bool:
         """
@@ -78,6 +105,11 @@ class BluetoothManager:
                 return False
             
             self.gui.log_message(f"正在連接到 {address}...")
+            
+            # 設定發球機位置
+            if hasattr(self.bluetooth_thread, 'set_machine_position'):
+                self.bluetooth_thread.set_machine_position(self.machine_position)
+                self.gui.log_message(f"📍 使用發球機位置: {self.machine_position}")
             
             # 更新 UI 狀態
             if hasattr(self.gui, 'connect_button'):

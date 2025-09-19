@@ -424,23 +424,27 @@ class BadmintonLauncherGUI(QMainWindow):
             except Exception as e:
                 print(f"藍牙斷開連接處理錯誤：{e}")
 
-        # 停止語音控制
+        # 停止語音控制（簡化版）
         try:
-            if hasattr(self, 'stop_voice_control'):
-                def stop_voice_control():
-                    try:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        loop.run_until_complete(self.stop_voice_control())
-                        loop.close()
-                    except Exception as e:
-                        print(f"停止語音控制時發生錯誤：{e}")
-                
-                import threading
-                stop_thread = threading.Thread(target=stop_voice_control, daemon=True)
-                stop_thread.start()
-        except Exception:
-            pass
+            # 停止 TTS 語音控制
+            if hasattr(self, 'voice_control_tts') and self.voice_control_tts is not None:
+                self.voice_control_tts._running = False
+                self.voice_control_tts._starting = False
+                self.voice_control_tts._listen_task = None
+                self.voice_control_tts._capture_task = None
+                self.voice_control_tts._audio_stream = None
+                print("語音控制已停止")
+            
+            # 停止舊版語音控制
+            if hasattr(self, 'voice_control') and self.voice_control is not None:
+                self.voice_control._running = False
+                self.voice_control._starting = False
+                self.voice_control._listen_task = None
+                self.voice_control._capture_task = None
+                self.voice_control._audio_stream = None
+                print("舊版語音控制已停止")
+        except Exception as e:
+            print(f"停止語音控制時發生錯誤：{e}")
 
         event.accept()
 
@@ -502,6 +506,15 @@ BadmintonLauncherGUI.update_program_description = getattr(_ui_utils, 'update_pro
 BadmintonLauncherGUI.on_scan_button_clicked = getattr(_ui_connection, 'on_scan_button_clicked')
 BadmintonLauncherGUI.on_connect_button_clicked = getattr(_ui_connection, 'on_connect_button_clicked')
 BadmintonLauncherGUI.on_disconnect_button_clicked = getattr(_ui_connection, 'on_disconnect_button_clicked')
+BadmintonLauncherGUI.on_position_changed = getattr(_ui_connection, 'on_position_changed')
+# 雙發球機相關函數
+BadmintonLauncherGUI._create_single_machine_tab = getattr(_ui_connection, '_create_single_machine_tab')
+BadmintonLauncherGUI._create_dual_machine_tab = getattr(_ui_connection, '_create_dual_machine_tab')
+BadmintonLauncherGUI.on_dual_scan_button_clicked = getattr(_ui_connection, 'on_dual_scan_button_clicked')
+BadmintonLauncherGUI.on_connect_dual_button_clicked = getattr(_ui_connection, 'on_connect_dual_button_clicked')
+BadmintonLauncherGUI.on_disconnect_dual_button_clicked = getattr(_ui_connection, 'on_disconnect_dual_button_clicked')
+BadmintonLauncherGUI.update_dual_connection_status = getattr(_ui_connection, 'update_dual_connection_status')
+BadmintonLauncherGUI.update_connection_status = getattr(_ui_connection, 'update_connection_status')
 BadmintonLauncherGUI.on_start_training_button_clicked = getattr(_ui_training, 'on_start_training_button_clicked')
 BadmintonLauncherGUI.create_warmup_tab = getattr(_ui_warmup, 'create_warmup_tab')
 BadmintonLauncherGUI.start_warmup = getattr(_ui_warmup, 'start_warmup')

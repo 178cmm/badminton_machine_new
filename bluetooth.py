@@ -25,6 +25,28 @@ class BluetoothThread(QThread):
         self.client = None
         self.is_connected = False
         self._scanning = False
+        self.machine_position = "center"  # 預設為中央位置
+    
+    def set_machine_position(self, position: str):
+        """
+        設定發球機位置
+        
+        Args:
+            position: 發球機位置 ("center", "left", "right")
+        """
+        if position in ["center", "left", "right"]:
+            self.machine_position = position
+        else:
+            self.error_occurred.emit(f"無效的發球機位置: {position}")
+    
+    def get_machine_position(self) -> str:
+        """
+        獲取當前發球機位置
+        
+        Returns:
+            當前發球機位置
+        """
+        return self.machine_position
         
     async def find_device(self):
         """尋找發球機設備（加入超時及重試，避免事件迴圈衝突）"""
@@ -106,24 +128,37 @@ class BluetoothThread(QThread):
         """發送發球指令"""
         try:
             area_data = read_data_from_json(AREA_FILE_PATH)
-            if area_data and area_section in area_data["section"]:
+            if not area_data:
+                self.error_occurred.emit("無法載入發球區域數據")
+                return False
+            
+            # 根據發球機位置選擇參數來源
+            position_key = f"{self.machine_position}_machine"
+            if position_key in area_data and area_section in area_data[position_key]:
+                params_str = area_data[position_key][area_section]
+            elif area_section in area_data.get("section", {}):
+                # 回退到通用參數
                 params_str = area_data["section"][area_section]
-                params = parse_area_params(params_str)
+            else:
+                self.error_occurred.emit(f"找不到區域 {area_section} 的參數")
+                return False
+            
+            params = parse_area_params(params_str)
+            
+            if params and self.client and self.is_connected:
+                command = create_shot_command(
+                    params['speed'],
+                    params['horizontal_angle'],
+                    params['vertical_angle'],
+                    params['height']
+                )
                 
-                if params and self.client and self.is_connected:
-                    command = create_shot_command(
-                        params['speed'],
-                        params['horizontal_angle'],
-                        params['vertical_angle'],
-                        params['height']
-                    )
-                    
-                    await self.client.write_gatt_char(write_char_uuid, command)
-                    self.shot_sent.emit(f"已發送 {area_section}")
-                    return True
-                else:
-                    self.error_occurred.emit(f"無法發送 {area_section}")
-                    return False
+                await self.client.write_gatt_char(write_char_uuid, command)
+                self.shot_sent.emit(f"已發送 {area_section} (位置: {self.machine_position})")
+                return True
+            else:
+                self.error_occurred.emit(f"無法發送 {area_section}")
+                return False
         except Exception as e:
             self.error_occurred.emit(f"發送指令失敗: {e}")
             return False
