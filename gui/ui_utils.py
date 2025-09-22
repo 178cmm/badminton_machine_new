@@ -1,4 +1,5 @@
 from commands import read_data_from_json
+from PyQt5.QtWidgets import QPushButton
 
 PROGRAMS_FILE_PATH = "training_programs.json"
 
@@ -73,3 +74,22 @@ def update_program_description(self):
     self.program_description.setText("請選擇訓練套餐或球路")
     if hasattr(self, 'start_training_button'):
         self.start_training_button.setEnabled(False)
+
+def create_area_buttons(self, layout, start_sec, end_sec, handler=None):
+    """建立區域按鈕，允許注入自訂 handler(section)"""
+    row = 0
+    col = 0
+    max_cols = 5
+    for section_num in range(start_sec, end_sec + 1):
+        section = f"sec{section_num}"
+        button = QPushButton(section)
+        if handler is None:
+            # 回退到預設處理器
+            button.clicked.connect(lambda checked, s=section: self.handle_shot_button_click(s))
+        else:
+            button.clicked.connect(lambda checked, s=section: handler(s))
+        layout.addWidget(button, row, col)
+        col += 1
+        if col >= max_cols:
+            col = 0
+            row += 1

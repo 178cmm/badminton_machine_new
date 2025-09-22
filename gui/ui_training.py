@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QComboBox, QTextEdit, QGroupBox, QTabWidget, QProgressBar, QDialog, QGridLayout, QHBoxLayout, QScrollArea
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QComboBox, QTextEdit, QGroupBox, QTabWidget, QProgressBar, QDialog, QGridLayout, QHBoxLayout, QScrollArea, QSplitter
 from PyQt5.QtCore import Qt
 from qasync import asyncSlot
 import sys
@@ -9,8 +9,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.parsers import get_basic_training_items, load_descriptions
 from core.executors import create_basic_training_executor
+from core.utils.video_config import get_video_config
 from commands import read_data_from_json
 from bluetooth import AREA_FILE_PATH
+from gui.video_player import VideoPlayer
 
 def create_basic_training_tab(self):
     """創建基礎訓練標籤頁"""
@@ -31,63 +33,86 @@ def create_basic_training_tab(self):
     # 建立 section 對應名稱，供描述顯示使用
     self.section_to_name = {}
 
-    # 創建按鈕 - 恢復原本的配色和排版
+    # 創建按鈕 - 小幅美化原有設計
     for i, (name, section) in enumerate(basic_trainings):
         self.section_to_name[section] = name
         button = QPushButton(name)
         button.clicked.connect(lambda checked, s=section, n=name: self.select_basic_training(s, n))
-        row, col = divmod(i, 4)  # 恢復原本的4列布局
+        
+        # 小幅美化按鈕樣式
+        button.setStyleSheet("""
+            QPushButton {
+                background-color: #5a8c9a;
+                color: #ffffff;
+                border: 1px solid #5a8c9a;
+                padding: 10px 16px;
+                border-radius: 8px;
+                font-size: 13px;
+                font-weight: 500;
+                min-height: 20px;
+            }
+            QPushButton:hover {
+                background-color: #6a9caa;
+                border: 1px solid #6a9caa;
+            }
+            QPushButton:pressed {
+                background-color: #4a7c8a;
+                border: 1px solid #4a7c8a;
+            }
+        """)
+        
+        row, col = divmod(i, 4)  # 保持原本的4列布局
         button_grid.addWidget(button, row, col)
     
     scroll_layout.addLayout(button_grid)
     
-    # 添加進度條區域
+    # 添加進度條區域 - 小幅美化
     progress_group = QGroupBox("訓練進度")
     progress_group.setStyleSheet("""
         QGroupBox {
-            font-size: 12px;
+            font-size: 13px;
             font-weight: bold;
             color: #ffffff;
-            border: 1px solid #555555;
-            border-radius: 5px;
-            margin-top: 5px;
-            padding-top: 5px;
-            background-color: #3c3c3c;
+            border: 1px solid #5a8c9a;
+            border-radius: 8px;
+            margin-top: 8px;
+            padding-top: 10px;
+            background-color: rgba(90, 140, 154, 0.1);
         }
         QGroupBox::title {
             subcontrol-origin: margin;
-            left: 8px;
-            padding: 0 3px 0 3px;
+            left: 10px;
+            padding: 0 5px 0 5px;
             color: #4CAF50;
         }
     """)
     progress_layout = QVBoxLayout(progress_group)
-    progress_layout.setContentsMargins(5, 5, 5, 5)  # 減少內邊距
-    progress_layout.setSpacing(3)  # 減少間距
+    progress_layout.setContentsMargins(8, 8, 8, 8)
+    progress_layout.setSpacing(5)
     
-    # 進度條
+    # 進度條 - 小幅美化
     self.basic_training_progress_bar = QProgressBar()
     self.basic_training_progress_bar.setVisible(False)
-    self.basic_training_progress_bar.setMaximumHeight(15)  # 設定最大高度為15px
+    self.basic_training_progress_bar.setMaximumHeight(18)
     self.basic_training_progress_bar.setStyleSheet("""
         QProgressBar {
-            border: 1px solid #555555;
-            border-radius: 3px;
+            border: 1px solid #5a8c9a;
+            border-radius: 5px;
             text-align: center;
             background-color: #2b2b2b;
             color: #ffffff;
             font-weight: bold;
-            font-size: 10px;
+            font-size: 11px;
         }
         QProgressBar::chunk {
             background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                 stop:0 #4CAF50, stop:1 #45a049);
-            border-radius: 2px;
+            border-radius: 4px;
         }
     """)
     progress_layout.addWidget(self.basic_training_progress_bar)
     
-    # 進度文字標籤
+    # 進度文字標籤 - 小幅美化
     self.basic_training_progress_label = QLabel("")
     self.basic_training_progress_label.setStyleSheet("""
         QLabel {
@@ -130,8 +155,17 @@ def select_basic_training(self, section, shot_name=None):
             dialog.setWindowTitle(f"選擇訓練設置 - {display_name}")
         except Exception:
             pass
+    
+    # 創建分割器來分離描述和影片區域
+    splitter = QSplitter(Qt.Horizontal)
+    dialog_layout.addWidget(splitter)
+    
+    # 左側：描述區域
+    left_widget = QWidget()
+    left_layout = QVBoxLayout(left_widget)
+    
     desc_title = QLabel("項目說明:")
-    dialog_layout.addWidget(desc_title)
+    left_layout.addWidget(desc_title)
     desc_text = QTextEdit()
     desc_text.setReadOnly(True)
     description_body = self.basic_discription_map.get(display_name or "", "暫無說明")
@@ -140,8 +174,83 @@ def select_basic_training(self, section, shot_name=None):
     else:
         full_text = description_body if description_body else (display_name or section)
     desc_text.setText(full_text)
-    desc_text.setMinimumHeight(220)
-    dialog_layout.addWidget(desc_text)
+    desc_text.setMinimumHeight(200)
+    left_layout.addWidget(desc_text)
+    
+    splitter.addWidget(left_widget)
+    
+    # 右側：影片播放區域
+    right_widget = QWidget()
+    right_layout = QVBoxLayout(right_widget)
+    
+    video_title = QLabel("教學影片:")
+    right_layout.addWidget(video_title)
+    
+    # 創建影片播放器
+    video_player = VideoPlayer()
+    video_config = get_video_config()
+    
+    # 檢查是否有對應的影片
+    if display_name and video_config.has_video(display_name):
+        video_path = video_config.get_video_path(display_name)
+        if video_path:
+            # 載入影片並檢查是否成功
+            success = video_player.load_video(video_path)
+            if not success:
+                # 如果載入失敗，顯示錯誤信息
+                error_label = QLabel(f"影片載入失敗:\n{video_path}")
+                error_label.setStyleSheet("""
+                    QLabel {
+                        color: #ff6b6b;
+                        font-size: 12px;
+                        text-align: center;
+                        padding: 20px;
+                        border: 2px dashed #ff6b6b;
+                        border-radius: 5px;
+                        background-color: #2b2b2b;
+                    }
+                """)
+                error_label.setAlignment(Qt.AlignCenter)
+                right_layout.addWidget(error_label)
+        else:
+            # 如果路徑為空，顯示提示信息
+            no_video_label = QLabel("影片檔案路徑錯誤")
+            no_video_label.setStyleSheet("""
+                QLabel {
+                    color: #ffa726;
+                    font-size: 14px;
+                    text-align: center;
+                    padding: 50px;
+                    border: 2px dashed #ffa726;
+                    border-radius: 5px;
+                    background-color: #2b2b2b;
+                }
+            """)
+            no_video_label.setAlignment(Qt.AlignCenter)
+            right_layout.addWidget(no_video_label)
+    else:
+        # 如果沒有影片，顯示提示信息
+        no_video_label = QLabel("暫無教學影片")
+        no_video_label.setStyleSheet("""
+            QLabel {
+                color: #888888;
+                font-size: 14px;
+                text-align: center;
+                padding: 50px;
+                border: 2px dashed #555555;
+                border-radius: 5px;
+                background-color: #2b2b2b;
+            }
+        """)
+        no_video_label.setAlignment(Qt.AlignCenter)
+        right_layout.addWidget(no_video_label)
+    
+    # 總是添加影片播放器，即使載入失敗也能顯示錯誤狀態
+    right_layout.addWidget(video_player)
+    splitter.addWidget(right_widget)
+    
+    # 設置分割器比例（左側40%，右側60%）
+    splitter.setSizes([400, 600])
     
     # 速度選擇
     speed_label = QLabel("選擇速度:")
@@ -157,13 +266,13 @@ def select_basic_training(self, section, shot_name=None):
     dialog_layout.addWidget(count_label)
     dialog_layout.addWidget(count_combo)
     
-    # 動態設置對話框大小，根據螢幕尺寸調整
+    # 動態設置對話框大小，根據螢幕尺寸調整（考慮影片播放器需要更大空間）
     from PyQt5.QtWidgets import QApplication
     screen = QApplication.desktop().screenGeometry()
-    dialog_width = min(600, int(screen.width() * 0.4))
-    dialog_height = min(550, int(screen.height() * 0.6))
+    dialog_width = min(1000, int(screen.width() * 0.7))  # 增加寬度以容納影片播放器
+    dialog_height = min(700, int(screen.height() * 0.7))  # 增加高度
     dialog.resize(dialog_width, dialog_height)
-    dialog.setMinimumSize(480, 400)  # 設定最小尺寸
+    dialog.setMinimumSize(800, 500)  # 設定最小尺寸
 
     # 確認和停止按鈕佈局
     button_layout = QHBoxLayout()
@@ -218,6 +327,13 @@ def select_basic_training(self, section, shot_name=None):
     except Exception:
         pass
 
+    # 添加對話框關閉時的清理邏輯
+    def on_dialog_finished():
+        if hasattr(video_player, 'cleanup'):
+            video_player.cleanup()
+    
+    dialog.finished.connect(on_dialog_finished)
+    
     # 以 modeless 方式顯示並保留參考，避免被垃圾回收
     self._basic_training_dialog = dialog
     dialog.show()

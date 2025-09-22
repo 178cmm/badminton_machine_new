@@ -1483,7 +1483,14 @@ class VoiceControlTTS:
             self._update_status("等待語音輸入...", "processing")
             return
         
-        # 2. 檢查快取回覆
+        # 2. 智能指令分類（新增：優先處理連線控制指令）
+        connection_command = self._classify_connection_command(text)
+        if connection_command:
+            self._add_chat_message(f"🔗 識別為連線控制指令：{connection_command['type']}", "system")
+            await self._handle_connection_command(connection_command)
+            return
+        
+        # 3. 檢查快取回覆
         if self.reply_cache:
             cached_reply = self.reply_cache.get_cached_reply(text)
             if cached_reply:
@@ -1499,7 +1506,7 @@ class VoiceControlTTS:
                 self._update_status("等待語音輸入...", "processing")
                 return
         
-        # 3. 檢查常用回覆模板
+        # 4. 檢查常用回覆模板
         if self.reply_cache:
             common_reply = self.reply_cache.get_common_reply(text)
             if common_reply:
@@ -1518,7 +1525,7 @@ class VoiceControlTTS:
                 self._update_status("等待語音輸入...", "processing")
                 return
         
-        # 4. 檢查喚醒詞
+        # 5. 檢查喚醒詞
         wake_word = "啟動語音發球機"
         if self._is_wake_word(text, wake_word):
             self._add_chat_message(f"🔔 喚醒詞命中：{wake_word}", "system")
@@ -1535,7 +1542,7 @@ class VoiceControlTTS:
             self._update_status("等待語音輸入...", "processing")
             return
         
-        # 5. 規則匹配
+        # 6. 規則匹配
         if self.rule_matcher:
             self._add_chat_message("🔍 開始規則匹配...", "system")
             rule = self.rule_matcher.match(text)
@@ -1548,7 +1555,7 @@ class VoiceControlTTS:
         else:
             self._add_chat_message("⚠️ 規則匹配器未初始化", "system")
         
-        # 6. LLM 回覆（只有在思考模式下才使用）
+        # 7. LLM 回覆（只有在思考模式下才使用）
         if self.mode_manager.is_think_mode():
             self._add_chat_message("🤖 使用 LLM 生成回覆...", "system")
             self._update_status("LLM思考中...", "processing")
@@ -1598,7 +1605,7 @@ class VoiceControlTTS:
             except Exception as e:
                 self._add_chat_message(f"❌ LLM 回覆失敗：{e}", "error")
         
-        # 7. 控制模式下規則不匹配時的回覆
+        # 8. 控制模式下規則不匹配時的回覆
         if self.mode_manager.is_control_mode():
             reply_text = self.mode_manager.get_mismatch_reply()
             self._add_chat_message(reply_text, "ai")
@@ -1624,6 +1631,87 @@ class VoiceControlTTS:
         normalized_wake = normalize_text(wake_word)
         
         return normalized_wake in normalized_text
+    
+    def _classify_connection_command(self, text: str) -> Optional[dict]:
+        """智能分類連線控制指令"""
+        import re
+        
+        # 正規化文本
+        normalized_text = _normalize_zh(text)
+        
+        # 連線控制指令模式（按優先級排序）
+        connection_patterns = [
+            # 掃描指令
+            {
+                "type": "scan",
+                "patterns": [
+                    r"掃描發球機", r"掃描", r"搜尋發球機", r"搜索發球機", 
+                    r"搜索", r"搜尋", r"找發球機", r"尋找發球機"
+                ],
+                "priority": 1
+            },
+            # 連接指令
+            {
+                "type": "connect", 
+                "patterns": [
+                    r"連接發球機", r"連線發球機", r"配對發球機", r"連接", 
+                    r"連線", r"配對", r"連上發球機", r"連接到發球機"
+                ],
+                "priority": 1
+            },
+            # 斷開指令
+            {
+                "type": "disconnect",
+                "patterns": [
+                    r"斷開發球機", r"斷線發球機", r"解除連接發球機", r"斷開", 
+                    r"斷線", r"解除連接", r"取消配對", r"斷開發球機連接"
+                ],
+                "priority": 1
+            }
+        ]
+        
+        # 按優先級檢查匹配
+        for command_type in connection_patterns:
+            for pattern in command_type["patterns"]:
+                if re.search(pattern, normalized_text):
+                    return {
+                        "type": command_type["type"],
+                        "original_text": text,
+                        "matched_pattern": pattern
+                    }
+        
+        return None
+    
+    async def _handle_connection_command(self, command: dict):
+        """處理連線控制指令"""
+        command_type = command["type"]
+        original_text = command["original_text"]
+        
+        try:
+            if command_type == "scan":
+                self._add_chat_message("🔍 開始掃描發球機...", "system")
+                await self._scan_device()
+                
+            elif command_type == "connect":
+                self._add_chat_message("🔗 開始連接發球機...", "system")
+                await self._connect_device()
+                
+            elif command_type == "disconnect":
+                self._add_chat_message("❌ 開始斷開發球機連接...", "system")
+                await self._disconnect_device()
+            
+            # 更新對話歷史
+            self.conversation_history.append({"role": "user", "content": original_text})
+            self.conversation_history.append({"role": "assistant", "content": f"已執行{command_type}指令"})
+            
+            # 限制對話歷史長度
+            if len(self.conversation_history) > 20:
+                self.conversation_history = self.conversation_history[-20:]
+                
+        except Exception as e:
+            self._add_chat_message(f"❌ 執行連線指令失敗：{e}", "error")
+        
+        self._update_status("等待語音輸入...", "processing")
     
     async def _handle_rule_match(self, rule: dict, original_text: str):
         """處理規則匹配結果"""
@@ -1808,15 +1896,12 @@ class VoiceControlTTS:
         self._log_ui(f"⚙️ 調整設定：{action}")
     
     def _log_ui(self, message: str):
-        """記錄到UI（修復版，支援異步環境）"""
+        """記錄到UI（修復版，避免QTimer問題）"""
         # 先在終端輸出，確保能看到處理過程
         print(f"[語音控制] {message}")
         
         try:
-            # 在異步環境中，使用線程安全的方式更新UI
-            import threading
-            from PyQt5.QtCore import QTimer
-            
+            # 簡化版UI更新，避免QTimer問題
             def update_ui():
                 try:
                     if hasattr(self.window, "voice_chat_log") and self.window.voice_chat_log is not None:
@@ -1830,21 +1915,16 @@ class VoiceControlTTS:
                 except Exception as e:
                     print(f"UI更新失敗：{e}")
             
-            # 使用QTimer來確保在主線程中執行UI更新
-            try:
-                from PyQt5.QtCore import QTimer
-                QTimer.singleShot(0, update_ui)
-            except Exception:
-                # 如果QTimer不可用，直接調用
-                update_ui()
+            # 直接調用，避免QTimer問題
+            update_ui()
                 
         except Exception as e:
             print(f"日誌記錄失敗：{e}")
     
     def _update_status(self, status: str, status_type: str = "processing"):
-        """更新狀態顯示"""
+        """更新狀態顯示（簡化版）"""
         try:
-            # 直接在當前線程中更新UI，避免QTimer問題
+            # 簡化版狀態更新，避免複雜的UI操作
             if hasattr(self.window, "update_voice_status"):
                 try:
                     self.window.update_voice_status(status, status_type)
@@ -1855,18 +1935,18 @@ class VoiceControlTTS:
             print(f"狀態更新異常：{e}")
     
     def _add_chat_message(self, message: str, message_type: str = "system"):
-        """添加聊天訊息"""
+        """添加聊天訊息（簡化版）"""
         try:
-            # 直接在當前線程中更新UI，避免QTimer問題
+            # 簡化版聊天訊息更新
             if hasattr(self.window, "add_voice_chat_message"):
                 try:
                     self.window.add_voice_chat_message(message, message_type)
                 except Exception as e:
                     print(f"聊天訊息更新失敗：{e}")
-                    # 回退到舊的日誌方法
+                    # 回退到終端輸出
                     self._log_ui(message)
             else:
-                # 回退到舊的日誌方法
+                # 回退到終端輸出
                 self._log_ui(message)
                 
         except Exception as e:

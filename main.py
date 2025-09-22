@@ -54,18 +54,13 @@ def main():
         
         logger.info("✅ 主視窗創建並顯示完成")
         
-        # 創建保持活躍的定時器（避免事件循環問題）
-        timer = QTimer()
-        timer.timeout.connect(lambda: None)  # 空操作
-        timer.start(100)  # 每100ms觸發一次
-        
         logger.info("🎯 開始運行事件循環...")
         
-        # 使用更安全的事件循環運行方式
+        # 使用更安全的事件循環運行方式，避免定時器問題
         try:
             with loop:
-                # 使用 loop.run_forever() 而不是 app.exec()
-                loop.run_forever()
+                # 使用 app.exec() 而不是 loop.run_forever()，避免段錯誤
+                app.exec_()
                 logger.info("應用程式正常退出")
                 return 0
         except KeyboardInterrupt:

@@ -119,13 +119,25 @@ class SimulationExecutor:
             是否成功開始
         """
         try:
-            # 創建雙發球機執行器
-            if not hasattr(self.gui, 'dual_machine_executor'):
-                from .dual_machine_executor import create_dual_machine_executor
-                self.gui.dual_machine_executor = create_dual_machine_executor(self.gui)
+            # 檢查雙發球機連接狀態
+            if not self._check_dual_bluetooth_connection():
+                return False
             
-            # 開始雙發球機模擬對打
-            return self.gui.dual_machine_executor.start_dual_simulation(level)
+            self.gui.log_message("🔄 使用雙發球機模式進行模擬對打")
+            
+            # 重置狀態
+            self.stop_flag = False
+            self.previous_sec = None
+            
+            # 開始雙發球機訓練任務
+            self.training_task = self.gui.create_async_task(
+                self._run_dual_machine_simulation(difficulty, interval, serve_type)
+            )
+            
+            # 同步設置主GUI的訓練任務，保持與舊版本一致
+            self.gui.training_task = self.training_task
+            
+            return True
             
         except Exception as e:
             self.gui.log_message(f"❌ 開始雙發球機模擬對打失敗: {e}")
@@ -171,6 +183,21 @@ class SimulationExecutor:
             return False
         
         self.bluetooth_thread = self.gui.bluetooth_thread
+        return True
+    
+    def _check_dual_bluetooth_connection(self) -> bool:
+        """檢查雙發球機連接狀態"""
+        # 檢查雙發球機管理器是否存在
+        if not hasattr(self.gui, 'dual_bluetooth_manager') or not self.gui.dual_bluetooth_manager:
+            self.gui.log_message("❌ 雙發球機管理器未初始化")
+            return False
+        
+        # 檢查雙發球機是否都已連接
+        if not self.gui.dual_bluetooth_manager.is_dual_connected():
+            self.gui.log_message("❌ 雙發球機未完全連接，請先連接雙發球機")
+            return False
+        
+        self.gui.log_message("✅ 雙發球機連接狀態正常")
         return True
     
     def _get_training_params(self, level: int) -> tuple:
@@ -417,7 +444,7 @@ class SimulationExecutor:
                     self.gui.simulation_status_label.setText(status)
                     
                     # 根據狀態更新顏色
-                    if "運行中" in status or "對打中" in status:
+                    if "運行中" in status or "對打中" in status or "雙發球機" in status:
                         self.gui.simulation_status_label.setStyleSheet("""
                             QLabel {
                                 font-size: 14px;
@@ -459,6 +486,107 @@ class SimulationExecutor:
         except Exception as e:
             self.gui.log_message(f"❌ 更新狀態失敗: {e}")
     
+    async def _run_dual_machine_simulation(self, difficulty: int, interval: float, serve_type: int):
+        """
+        執行雙發球機模擬對打
+        
+        Args:
+            difficulty: 難度等級
+            interval: 發球間隔
+            serve_type: 球路類型
+        """
+        try:
+            self.gui.log_message("🚀 雙發球機模擬對打開始")
+            
+            # 初始化統計數據
+            shot_count = 0
+            start_time = time.time()
+            current_machine = 0  # 0=左發球機, 1=右發球機
+            
+            # 更新狀態為運行中
+            self._update_simulation_status("雙發球機對打中", f"發球次數: {shot_count} | 運行時間: 00:00")
+            
+            while not self.stop_flag:
+                # 生成發球區域
+                current_sec, next_sec = self._generate_pitch_areas(difficulty)
+                
+                # 選擇當前發球機
+                machine_name = "左發球機" if current_machine == 0 else "右發球機"
+                machine_thread = self.gui.dual_bluetooth_manager.get_machine_thread("left" if current_machine == 0 else "right")
+                
+                if machine_thread:
+                    # 發送發球指令
+                    await self._send_dual_shot_command(machine_thread, current_sec, machine_name)
+                    self.gui.log_message(f"🎯 {machine_name} 發球區域: {current_sec}")
+                    
+                    # 更新統計數據
+                    shot_count += 1
+                    elapsed_time = int(time.time() - start_time)
+                    minutes = elapsed_time // 60
+                    seconds = elapsed_time % 60
+                    time_str = f"{minutes:02d}:{seconds:02d}"
+                    
+                    # 更新狀態顯示
+                    self._update_simulation_status("雙發球機對打中", f"發球次數: {shot_count} | 運行時間: {time_str}")
+                    
+                    # 等待發球完成
+                    await self._wait_for_shot_completion()
+                    
+                    if self.stop_flag:
+                        break
+                    
+                    # 等待間隔時間
+                    await asyncio.sleep(interval)
+                    
+                    # 輪流切換發球機
+                    current_machine = 1 - current_machine
+                    
+                    # 準備下一球
+                    next_machine_name = "左發球機" if current_machine == 0 else "右發球機"
+                    self.gui.log_message(f"🔄 準備下一球，切換到 {next_machine_name}: {next_sec}")
+                else:
+                    self.gui.log_message(f"❌ {machine_name} 線程不可用")
+                    break
+            
+            # 更新最終狀態
+            elapsed_time = int(time.time() - start_time)
+            minutes = elapsed_time // 60
+            seconds = elapsed_time % 60
+            time_str = f"{minutes:02d}:{seconds:02d}"
+            self._update_simulation_status("已結束", f"發球次數: {shot_count} | 運行時間: {time_str}")
+            self.gui.log_message("✅ 雙發球機模擬對打結束")
+            
+        except asyncio.CancelledError:
+            self._update_simulation_status("已停止", f"發球次數: {shot_count} | 運行時間: {time_str}")
+            self.gui.log_message("🛑 雙發球機模擬對打被取消")
+        except Exception as e:
+            self._update_simulation_status("錯誤", f"發球次數: {shot_count} | 運行時間: {time_str}")
+            self.gui.log_message(f"❌ 雙發球機模擬對打執行錯誤: {e}")
+        finally:
+            # 清理狀態
+            self._cleanup_simulation()
+    
+    async def _send_dual_shot_command(self, machine_thread, area_section: str, machine_name: str):
+        """
+        發送雙發球機發球指令
+        
+        Args:
+            machine_thread: 發球機線程
+            area_section: 發球區域代碼
+            machine_name: 發球機名稱
+        """
+        try:
+            if machine_thread and machine_thread.is_connected:
+                result = await machine_thread.send_shot(area_section)
+                if result:
+                    self.gui.log_message(f"✅ {machine_name} 發球指令已發送")
+                else:
+                    self.gui.log_message(f"❌ {machine_name} 發球指令發送失敗")
+            else:
+                self.gui.log_message(f"❌ {machine_name} 未連接")
+        except Exception as e:
+            self.gui.log_message(f"❌ 發送 {machine_name} 發球指令失敗: {e}")
+
     def _cleanup_simulation(self):
         """清理模擬對打狀態"""
         try:

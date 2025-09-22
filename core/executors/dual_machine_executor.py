@@ -249,15 +249,13 @@ class DualMachineExecutor:
         try:
             # 使用雙發球機的參數
             if machine_index == 0:  # 左發球機
-                section_data = self.json_data.get("serve_types_left", {}).get(str(serve_type), {})
+                section_data = self.json_data.get("left_machine", {})
             else:  # 右發球機
-                section_data = self.json_data.get("serve_types_right", {}).get(str(serve_type), {})
+                section_data = self.json_data.get("right_machine", {})
             
             if not section_data:
-                # 如果沒有雙發球機參數，使用單發球機參數
-                section_data = self.json_data.get("serve_types_one", {}).get(str(serve_type), {})
-                if not section_data:
-                    section_data = self.json_data.get("section", {})
+                # 如果沒有雙發球機參數，使用通用參數
+                section_data = self.json_data.get("section", {})
             
             params_str = section_data.get(zone)
             if not params_str:

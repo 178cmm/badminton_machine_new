@@ -273,7 +273,7 @@ def create_voice_tab(self):
             self.voice_chat_log.append("⚠️ 請輸入有效的 API Key")
     
     def _start_voice():
-        """啟動語音控制"""
+        """啟動語音控制（修復版，避免段錯誤）"""
         # 檢查 API Key
         if not os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY") == "你的key":
             self.voice_chat_log.append("❌ 請先設定 OpenAI API Key")
@@ -283,31 +283,23 @@ def create_voice_tab(self):
         
         # 檢查是否已經在運行
         if hasattr(self, 'voice_control_tts') and self.voice_control_tts is not None:
-            if self.voice_control_tts._running:
+            if getattr(self.voice_control_tts, '_running', False):
                 self.voice_chat_log.append("⚠️ 語音控制已經在運行中")
                 return
         
-        # 停止舊的語音控制
+        # 停止舊的語音控制（簡化版）
         try:
             if hasattr(self, 'voice_control_tts') and self.voice_control_tts is not None:
-                # 使用線程來處理異步停止
-                def stop_voice_control():
-                    try:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        loop.run_until_complete(self.voice_control_tts.stop())
-                        loop.close()
-                    except Exception as e:
-                        print(f"停止語音控制時發生錯誤：{e}")
-                
-                import threading
-                stop_thread = threading.Thread(target=stop_voice_control, daemon=True)
-                stop_thread.start()
-                stop_thread.join(timeout=2)  # 等待最多2秒
+                # 直接設置停止標誌，避免複雜的異步操作
+                self.voice_control_tts._running = False
+                self.voice_control_tts._starting = False
+                self.voice_control_tts._listen_task = None
+                self.voice_control_tts._capture_task = None
+                self.voice_control_tts._audio_stream = None
         except Exception:
             pass
         
-        # 創建新的語音控制
+        # 創建新的語音控制（簡化版）
         try:
             from voice_control_tts import VoiceControlTTS, VoiceConfig
             
@@ -329,8 +321,8 @@ def create_voice_tab(self):
             default_mode = "control" if self.mode_combo.currentText() == "控制模式" else "think"
             self.voice_control_tts.mode_manager.current_mode = default_mode
             
-            # 使用線程來處理異步啟動
-            def start_voice_control():
+            # 使用簡化的啟動方式，避免複雜的線程操作
+            def start_voice_control_simple():
                 try:
                     # 創建新的事件循環
                     loop = asyncio.new_event_loop()
@@ -339,23 +331,24 @@ def create_voice_tab(self):
                     # 啟動語音控制
                     loop.run_until_complete(self.voice_control_tts.start())
                     
-                    # 保持循環運行，直到語音控制停止
+                    # 簡化的運行循環
                     try:
-                        while self.voice_control_tts._running:
-                            loop.run_until_complete(asyncio.sleep(0.1))
+                        while getattr(self.voice_control_tts, '_running', False):
+                            loop.run_until_complete(asyncio.sleep(0.5))  # 增加間隔，減少CPU使用
                     except Exception:
                         pass
                     
                 except Exception as e:
-                    self.voice_chat_log.append(f"❌ 語音控制啟動失敗：{e}")
+                    print(f"語音控制啟動失敗：{e}")
                 finally:
                     try:
                         loop.close()
                     except Exception:
                         pass
             
+            # 使用守護線程，避免阻塞主程式
             import threading
-            start_thread = threading.Thread(target=start_voice_control, daemon=True)
+            start_thread = threading.Thread(target=start_voice_control_simple, daemon=True)
             start_thread.start()
             self.voice_chat_log.append("🎙️ 正在啟動語音控制...")
             
@@ -363,58 +356,44 @@ def create_voice_tab(self):
             self.voice_chat_log.append(f"❌ 啟動語音控制失敗：{e}")
     
     def _stop_voice():
-        """停止語音控制"""
+        """停止語音控制（修復版，避免段錯誤）"""
         try:
-            # 停止 TTS 語音控制
+            # 停止 TTS 語音控制（簡化版）
             if hasattr(self, 'voice_control_tts') and self.voice_control_tts is not None:
-                def stop_voice_control():
-                    try:
-                        # 直接設置停止標誌，避免事件循環衝突
-                        self.voice_control_tts._running = False
-                        self.voice_control_tts._starting = False
-                        
-                        # 清理任務引用
-                        if hasattr(self.voice_control_tts, '_listen_task') and self.voice_control_tts._listen_task:
-                            try:
-                                self.voice_control_tts._listen_task.cancel()
-                            except Exception:
-                                pass
-                        
-                        self.voice_control_tts._listen_task = None
-                        self.voice_control_tts._capture_task = None
-                        self.voice_control_tts._audio_stream = None
-                        
-                        print("語音控制已停止")
-                    except Exception as e:
-                        print(f"停止語音控制時發生錯誤：{e}")
-                        # 如果停止失敗，強制重置狀態
-                        try:
-                            self.voice_control_tts.force_reset()
-                        except Exception:
-                            pass
+                # 直接設置停止標誌，避免複雜的線程操作
+                self.voice_control_tts._running = False
+                self.voice_control_tts._starting = False
                 
-                import threading
-                stop_thread = threading.Thread(target=stop_voice_control, daemon=True)
-                stop_thread.start()
-                stop_thread.join(timeout=2)  # 等待最多2秒
-                self.voice_chat_log.append("🔇 正在停止語音控制...")
+                # 清理任務引用
+                if hasattr(self.voice_control_tts, '_listen_task') and self.voice_control_tts._listen_task:
+                    try:
+                        self.voice_control_tts._listen_task.cancel()
+                    except Exception:
+                        pass
+                
+                self.voice_control_tts._listen_task = None
+                self.voice_control_tts._capture_task = None
+                self.voice_control_tts._audio_stream = None
+                
+                # 停止預載入系統
+                if hasattr(self.voice_control_tts, 'preload_manager') and self.voice_control_tts.preload_manager:
+                    try:
+                        self.voice_control_tts.preload_manager.stop_background_preload()
+                    except Exception:
+                        pass
+                
+                print("語音控制已停止")
+                self.voice_chat_log.append("🔇 語音控制已停止")
             
             # 停止簡化版語音控制
             if hasattr(self, 'simple_voice_control') and self.simple_voice_control is not None:
-                def stop_simple_voice_control():
-                    try:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        loop.run_until_complete(self.simple_voice_control.stop())
-                        loop.close()
-                    except Exception as e:
-                        print(f"停止簡化版語音控制時發生錯誤：{e}")
-                
-                import threading
-                stop_thread = threading.Thread(target=stop_simple_voice_control, daemon=True)
-                stop_thread.start()
-                stop_thread.join(timeout=3)  # 等待最多3秒
-                self.voice_chat_log.append("🔇 正在停止簡化版語音控制...")
+                # 直接設置停止標誌
+                self.simple_voice_control._running = False
+                self.simple_voice_control._starting = False
+                self.simple_voice_control._listen_task = None
+                self.simple_voice_control._capture_task = None
+                self.simple_voice_control._audio_stream = None
+                self.voice_chat_log.append("🔇 簡化版語音控制已停止")
                 
         except Exception as e:
             self.voice_chat_log.append(f"⚠️ 停止語音控制時發生錯誤：{e}")

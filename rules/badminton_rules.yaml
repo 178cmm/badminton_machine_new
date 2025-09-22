@@ -4,8 +4,37 @@ globals:
   fuzzy_threshold: 85
 
 rules:
+  # 連線控制指令（最高優先級，避免與其他指令衝突）
+  - id: "scan_device"
+    priority: 200
+    match:
+      contains: ["掃描發球機", "掃描", "搜尋發球機", "搜索發球機", "搜索", "搜尋"]
+    reply:
+      text: "開始掃描發球機，請稍候..."
+      voice: "nova"
+    action: "scan_device"
+
+  - id: "connect_device"
+    priority: 200
+    match:
+      contains: ["連接發球機", "連線發球機", "配對發球機", "連接", "連線", "配對"]
+    reply:
+      text: "開始連接發球機，請稍候..."
+      voice: "nova"
+    action: "connect_device"
+
+  - id: "disconnect_device"
+    priority: 200
+    match:
+      contains: ["斷開發球機", "斷線發球機", "解除連接發球機", "斷開", "斷線", "解除連接", "取消配對"]
+    reply:
+      text: "正在斷開發球機連接..."
+      voice: "nova"
+    action: "disconnect_device"
+
+  # 喚醒詞（降低優先級，避免與連線指令衝突）
   - id: "wake_up"
-    priority: 100
+    priority: 150
     match:
       contains: ["嘿發球機", "發球機", "球機", "羽球機", "小羽"]
     reply:

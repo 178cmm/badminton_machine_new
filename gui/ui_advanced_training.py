@@ -82,7 +82,7 @@ def create_advanced_training_tab(self):
     info_layout = QVBoxLayout(info_group)
     self.advanced_description = QTextEdit()
     self.advanced_description.setReadOnly(True)
-    self.advanced_description.setMinimumHeight(150)  # 減少最小高度以適應小螢幕
+    self.advanced_description.setMinimumHeight(250)  # 增加高度以容納更多訓練說明敘述
     info_layout.addWidget(self.advanced_description)
     scroll_layout.addWidget(info_group)
 
