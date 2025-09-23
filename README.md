@@ -78,6 +78,32 @@ export OPENAI_API_KEY="your-api-key-here"
 python main.py
 ```
 
+### 快速開始（simulate）
+
+若要在無實機情境下端到端演練：
+
+1. 設定模擬模式（依您的環境其一）：
+```bash
+export SIMULATE=true
+# 或在設定檔/程式啟動參數中設 simulate=true
+```
+
+2. 執行端到端腳本：
+```bash
+python tools/sim_e2e.py
+```
+
+3. 查看審計日誌：
+```bash
+tail -f logs/commands.jsonl
+```
+
+（選）更新 golden log 與跑測試：
+```bash
+pytest -k sim  # 依您的測試套件標記
+# 或將本次正確輸出覆寫為 golden（專案若提供對應工具）
+```
+
 ## 使用指南
 
 ### 手動控制

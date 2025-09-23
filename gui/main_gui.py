@@ -13,7 +13,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from bluetooth import BluetoothThread
 from commands import read_data_from_json, calculate_crc16_modbus, create_shot_command, parse_area_params
-from voice_control import VoiceControl
+# 舊版語音控制已移除，僅使用 TTS 版本
+VoiceControl = None
 # 新的 TTS 語音控制系統
 try:
     from voice_control_tts import VoiceControlTTS
@@ -33,6 +34,7 @@ from . import ui_warmup as _ui_warmup
 from . import ui_advanced_training as _ui_adv
 from . import ui_voice as _ui_voice
 from . import ui_simulation as _ui_simulation
+from . import ui_simulate_panel as _ui_simulate_panel
 
 class BadmintonLauncherGUI(QMainWindow):
     def __init__(self):
@@ -350,6 +352,11 @@ class BadmintonLauncherGUI(QMainWindow):
         self.create_text_input_tab()  # 文本輸入控制
         self.create_voice_tab()  # 語音控制
         self.create_log_tab()
+        
+        # 在 simulate 模式下添加解析面板
+        simulate_panel = self.create_simulate_panel()
+        if simulate_panel:
+            self.tab_widget.addTab(simulate_panel, "🔍 Simulate")
 
         # 創建柔和AI風格狀態欄
         self.status_label = QLabel("🔴 SYSTEM STATUS: DISCONNECTED")
@@ -525,3 +532,7 @@ BadmintonLauncherGUI.create_simulation_tab = getattr(_ui_simulation, 'create_sim
 BadmintonLauncherGUI.start_simulation_training = getattr(_ui_simulation, 'start_simulation_training')
 BadmintonLauncherGUI.stop_simulation_training = getattr(_ui_simulation, 'stop_simulation_training')
 BadmintonLauncherGUI.connect_simulation_events = getattr(_ui_simulation, 'connect_simulation_events')
+# Simulate 面板
+BadmintonLauncherGUI.create_simulate_panel = getattr(_ui_simulate_panel, 'create_simulate_panel')
+BadmintonLauncherGUI._refresh_simulate_panel = getattr(_ui_simulate_panel, '_refresh_simulate_panel')
+BadmintonLauncherGUI._clear_simulate_logs = getattr(_ui_simulate_panel, '_clear_simulate_logs')
