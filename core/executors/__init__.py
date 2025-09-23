@@ -9,10 +9,19 @@
 - warmup_executor: 熱身執行
 """
 
-from .text_command_executor import create_text_command_executor, TextCommandExecutor
+try:
+    from .text_command_executor import create_text_command_executor, TextCommandExecutor
+except Exception:
+    # Deprecated：若不存在則忽略
+    create_text_command_executor = None
+    TextCommandExecutor = None
 from .advanced_training_executor import create_advanced_training_executor, AdvancedTrainingExecutor
 from .basic_training_executor import create_basic_training_executor, BasicTrainingExecutor
-from .course_executor import create_course_executor, CourseExecutor
+try:
+    from .course_executor import create_course_executor, CourseExecutor
+except Exception:
+    create_course_executor = None
+    CourseExecutor = None
 from .warmup_executor import create_warmup_executor, WarmupExecutor
 
 __all__ = [

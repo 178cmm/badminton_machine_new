@@ -7,7 +7,11 @@
 - basic_training_parser: 基礎訓練配置解析
 """
 
-from .text_command_parser import parse_command
+try:
+    from .text_command_parser import parse_command  # DEPRECATED
+except Exception:
+    parse_command = None
+from .unified_parser import UnifiedParser
 from .advanced_training_parser import (
     load_advanced_training_specs, 
     get_advanced_training_titles, 
@@ -31,6 +35,7 @@ from .warmup_parser import (
 
 __all__ = [
     'parse_command',
+    'UnifiedParser',
     'load_advanced_training_specs',
     'get_advanced_training_titles', 
     'get_advanced_training_description',
