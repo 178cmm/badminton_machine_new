@@ -1483,6 +1483,63 @@ class VoiceControlTTS:
             self._update_status("等待語音輸入...", "processing")
             return
         
+        # 思考模式：直接使用LLM回覆，跳過所有控制相關的處理
+        if self.mode_manager.is_think_mode():
+            self._add_chat_message("🤖 思考模式：使用 LLM 生成回覆...", "system")
+            self._update_status("LLM思考中...", "processing")
+            try:
+                # 使用 LLM 生成回覆
+                system_prompt = "你是羽球教練，請用簡潔的1-2句話回覆學員的問題。專注於羽球技術指導，不要涉及發球機控制。"
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": text}
+                ]
+                
+                # 添加對話歷史
+                if self.conversation_history:
+                    messages = [{"role": "system", "content": system_prompt}] + self.conversation_history[-6:] + [{"role": "user", "content": text}]
+                
+                import asyncio
+                loop = asyncio.get_running_loop()
+                def _call_openai_sync():
+                    return self.client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=messages,
+                        max_tokens=150,
+                        temperature=0.7
+                    )
+                response = await loop.run_in_executor(None, _call_openai_sync)
+                
+                reply_text = response.choices[0].message.content.strip()
+                self._add_chat_message(reply_text, "ai")
+                
+                # 更新對話歷史
+                self.conversation_history.append({"role": "user", "content": text})
+                self.conversation_history.append({"role": "assistant", "content": reply_text})
+                
+                # 保持歷史長度
+                if len(self.conversation_history) > 20:
+                    self.conversation_history = self.conversation_history[-20:]
+                
+                # 快取回覆
+                if self.reply_cache:
+                    self.reply_cache.cache_reply(text, reply_text)
+                
+                if self.config.enable_tts:
+                    self._update_status("TTS語音合成中...", "processing")
+                    await self._speak_text(reply_text)
+                
+                self._update_status("等待語音輸入...", "processing")
+                return
+                
+            except Exception as e:
+                error_msg = f"LLM 回覆生成失敗：{str(e)}"
+                self._add_chat_message(error_msg, "error")
+                print(f"❌ {error_msg}")
+                self._update_status("等待語音輸入...", "processing")
+                return
+        
+        # 控制模式：執行所有控制相關的處理邏輯
         # 2. 智能指令分類（新增：優先處理連線控制指令）
         connection_command = self._classify_connection_command(text)
         if connection_command:
@@ -1555,65 +1612,15 @@ class VoiceControlTTS:
         else:
             self._add_chat_message("⚠️ 規則匹配器未初始化", "system")
         
-        # 7. LLM 回覆（只有在思考模式下才使用）
-        if self.mode_manager.is_think_mode():
-            self._add_chat_message("🤖 使用 LLM 生成回覆...", "system")
-            self._update_status("LLM思考中...", "processing")
-            try:
-                # 使用 LLM 生成回覆
-                system_prompt = "你是羽球發球機助理，請用簡潔的1-2句話回覆。"
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": text}
-                ]
-                
-                # 添加對話歷史
-                if self.conversation_history:
-                    messages = [{"role": "system", "content": system_prompt}] + self.conversation_history[-10:] + [{"role": "user", "content": text}]
-                
-                response = await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: self.client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=messages,
-                        temperature=0.5,
-                        max_tokens=120
-                    )
-                )
-                
-                reply_text = response.choices[0].message.content.strip()
-                self._add_chat_message(reply_text, "ai")
-                
-                # 快取回覆
-                if self.reply_cache:
-                    self.reply_cache.cache_reply(text, reply_text)
-                
-                # 更新對話歷史
-                self.conversation_history.append({"role": "user", "content": text})
-                self.conversation_history.append({"role": "assistant", "content": reply_text})
-                
-                # 限制對話歷史長度
-                if len(self.conversation_history) > 20:
-                    self.conversation_history = self.conversation_history[-20:]
-                
-                if self.config.enable_tts:
-                    self._update_status("TTS語音合成中...", "processing")
-                    await self._speak_text(reply_text)
-                self._update_status("等待語音輸入...", "processing")
-                return
-                
-            except Exception as e:
-                self._add_chat_message(f"❌ LLM 回覆失敗：{e}", "error")
-        
-        # 8. 控制模式下規則不匹配時的回覆
+        # 7. 控制模式下規則不匹配時的回覆
         if self.mode_manager.is_control_mode():
-            reply_text = self.mode_manager.get_mismatch_reply()
+            reply_text = self.mode_manager.mismatch_reply
             self._add_chat_message(reply_text, "ai")
             if self.config.enable_tts:
                 self._update_status("TTS語音合成中...", "processing")
                 await self._speak_text(reply_text)
         else:
-            # 思考模式下也沒有生成回覆
+            # 思考模式下也沒有生成回覆（理論上不會到達這裡）
             self._add_chat_message("❓ 未識別的指令，請使用明確的羽球訓練指令", "system")
         
         self._update_status("等待語音輸入...", "processing")

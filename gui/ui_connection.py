@@ -7,6 +7,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.managers import create_bluetooth_manager, create_dual_bluetooth_manager
+from core.services.device_service import DeviceService
 
 def create_connection_tab(self):
     """創建連接標籤頁"""
@@ -27,7 +28,9 @@ def create_connection_tab(self):
     layout.addWidget(connection_tabs)
     layout.addStretch()
     
-    # 建立藍牙管理器
+    # 建立裝置服務（統一路徑）
+    self.device_service = DeviceService(self, simulate=False)
+    # 仍保留舊管理器以相容（將於 M5 移除）
     self.bluetooth_manager = create_bluetooth_manager(self)
     self.dual_bluetooth_manager = create_dual_bluetooth_manager(self)
     
@@ -441,20 +444,19 @@ def on_position_changed(self):
 
 def on_scan_button_clicked(self):
     """掃描按鈕點擊事件（UI 層面的處理）"""
-    # 使用安全的方法創建異步任務
-    self.create_async_task(self.bluetooth_manager.scan_devices())
+    # 使用統一 Service
+    self.create_async_task(self.device_service.scan())
 
 def on_connect_button_clicked(self):
     """連接按鈕點擊事件（UI 層面的處理）"""
     address = self.device_combo.currentData()
-    if address:
-        # 使用安全的方法創建異步任務
-        self.create_async_task(self.bluetooth_manager.connect_device(address))
+    # Service 內部會處理地址為空的情況
+    self.create_async_task(self.device_service.connect(address))
 
 def on_disconnect_button_clicked(self):
     """斷開按鈕點擊事件（UI 層面的處理）"""
-    # 使用安全的方法創建異步任務
-    self.create_async_task(self.bluetooth_manager.disconnect_device())
+    # 使用統一 Service
+    self.create_async_task(self.device_service.disconnect())
 
 # 雙發球機事件處理函數
 def on_dual_scan_button_clicked(self):

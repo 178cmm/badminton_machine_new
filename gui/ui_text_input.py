@@ -138,5 +138,70 @@ def execute_text_command(self):
     # 清空輸入框
     self.text_input.clear()
     
-    # 使用命令執行器處理命令
+    # 嘗試走統一 Parser → Router → Reply 的新流程（僅處理四個系統指令）
+    try:
+        from core.parsers import UnifiedParser
+        from core.router import CommandRouter
+        from gui.response_templates import ReplyTemplates
+
+        parser = UnifiedParser()
+        cmd = parser.parse(command_text, source="text")
+        if cmd:
+            # 前置回覆（START 類）
+            if cmd.intent == "WAKE":
+                self.text_chat_log.append(f"AI: {ReplyTemplates.WAKE_OK}")
+                return
+            if cmd.intent == "SCAN":
+                self.text_chat_log.append(f"AI: {ReplyTemplates.SCAN_START}")
+            if cmd.intent == "CONNECT":
+                self.text_chat_log.append(f"AI: {ReplyTemplates.CONNECT_START}")
+            if cmd.intent == "DISCONNECT":
+                self.text_chat_log.append(f"AI: {ReplyTemplates.DISCONNECT_START}")
+
+            router = CommandRouter(self)
+            # 路由並執行
+            import asyncio
+            asyncio.create_task(_route_and_reply(self, router, cmd))
+            return
+    except Exception:
+        pass
+
+    # 退回舊流程前，嘗試新橋接層（統一路徑）
+    try:
+        from ui.io_bridge import IOBridge
+        if not hasattr(self, '_io_bridge'):
+            self._io_bridge = IOBridge(self)
+        self._io_bridge.handle_text(command_text, source="text")
+        return
+    except Exception:
+        pass
+
+    # 退回舊流程
     self.text_command_executor.execute_text_command(command_text)
+
+
+async def _route_and_reply(self, router, cmd):
+    from gui.response_templates import ReplyTemplates
+    result = await router.route(cmd)
+    tpl = result.get("template")
+    if tpl == "SCAN_DONE":
+        # 嘗試從 UI 下拉讀取找到的裝置數
+        count = 0
+        try:
+            if hasattr(self, 'device_combo'):
+                count = self.device_combo.count()
+        except Exception:
+            pass
+        self.text_chat_log.append(f"AI: {ReplyTemplates.SCAN_DONE(count)}")
+    elif tpl == "CONNECT_DONE":
+        self.text_chat_log.append(f"AI: {ReplyTemplates.CONNECT_DONE}")
+    elif tpl == "DISCONNECT_DONE":
+        self.text_chat_log.append(f"AI: {ReplyTemplates.DISCONNECT_DONE}")
+    elif tpl == "PROGRAM_START":
+        txt = ReplyTemplates.PROGRAM_START(result.get("program_name"), result.get("balls"), result.get("interval_sec"))
+        self.text_chat_log.append(f"AI: {txt}")
+    elif tpl == "PROGRAM_MULTI":
+        txt = ReplyTemplates.PROGRAM_MULTI(result.get("candidates", []))
+        self.text_chat_log.append(f"AI: {txt}")
+    elif tpl == "PROGRAM_NOT_FOUND":
+        self.text_chat_log.append(f"AI: {ReplyTemplates.PROGRAM_NOT_FOUND}")

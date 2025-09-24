@@ -35,6 +35,7 @@ from . import ui_advanced_training as _ui_adv
 from . import ui_voice as _ui_voice
 from . import ui_simulation as _ui_simulation
 from . import ui_simulate_panel as _ui_simulate_panel
+from . import ui_ai_coach as _ui_ai_coach
 
 class BadmintonLauncherGUI(QMainWindow):
     def __init__(self):
@@ -103,36 +104,36 @@ class BadmintonLauncherGUI(QMainWindow):
         # 使用簡化的樣式表以避免分段錯誤
         self.setStyleSheet("""
             QMainWindow {
-                background-color: #2a2d3e;
-                color: #d0d6e5;
+                background-color: #1f2230;
+                color: #c7cbd6;
             }
             QWidget {
                 background-color: transparent;
-                color: #c0c6d5;
+                color: #b8becb;
             }
             QGroupBox {
                 font-weight: 600;
                 font-size: 14px;
-                border: 1px solid #5a8c9a;
+                border: 1px solid #3d5560;
                 border-radius: 10px;
                 margin-top: 12px;
                 padding-top: 16px;
-                background-color: rgba(74, 124, 138, 0.1);
-                color: #e0e6f0;
+                background-color: rgba(45, 70, 80, 0.08);
+                color: #d6dbe6;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 16px;
                 padding: 4px 12px;
-                background-color: #5a8c9a;
+                background-color: #3d5560;
                 color: #ffffff;
                 border-radius: 6px;
                 font-weight: bold;
             }
             QPushButton {
-                background-color: #5a8c9a;
+                background-color: #3d5560;
                 color: #ffffff;
-                border: 1px solid #5a8c9a;
+                border: 1px solid #3d5560;
                 padding: 8px 16px;
                 border-radius: 6px;
                 font-size: 13px;
@@ -140,12 +141,12 @@ class BadmintonLauncherGUI(QMainWindow):
                 min-height: 18px;
             }
             QPushButton:hover {
-                background-color: #6a9caa;
-                border: 1px solid #6a9caa;
+                background-color: #466273;
+                border: 1px solid #466273;
             }
             QPushButton:pressed {
-                background-color: #3a6c7a;
-                border: 1px solid #4a7c8a;
+                background-color: #2b3e49;
+                border: 1px solid #36515c;
             }
             QPushButton:disabled {
                 background-color: #555555;
@@ -154,15 +155,15 @@ class BadmintonLauncherGUI(QMainWindow):
             }
             QComboBox {
                 padding: 6px 10px;
-                border: 1px solid #5a8c9a;
+                border: 1px solid #3d5560;
                 border-radius: 6px;
                 font-size: 13px;
-                background-color: rgba(90, 140, 154, 0.1);
+                background-color: rgba(45, 70, 80, 0.1);
                 color: #ffffff;
                 min-height: 18px;
             }
             QComboBox:hover {
-                border: 1px solid #6a9caa;
+                border: 1px solid #466273;
             }
             QComboBox::drop-down {
                 border: none;
@@ -172,62 +173,62 @@ class BadmintonLauncherGUI(QMainWindow):
                 image: none;
                 border-left: 5px solid transparent;
                 border-right: 5px solid transparent;
-                border-top: 6px solid #5a8c9a;
+                border-top: 6px solid #3d5560;
                 margin-right: 6px;
             }
             QComboBox QAbstractItemView {
-                background-color: #2a2d3e;
+                background-color: #1f2230;
                 color: #ffffff;
-                border: 1px solid #5a8c9a;
+                border: 1px solid #3d5560;
                 border-radius: 6px;
-                selection-background-color: #5a8c9a;
+                selection-background-color: #3d5560;
                 selection-color: #ffffff;
                 padding: 4px;
             }
             QTextEdit {
-                border: 1px solid #5a8c9a;
+                border: 1px solid #3d5560;
                 border-radius: 6px;
                 padding: 8px;
                 font-family: 'Consolas', 'Monaco', monospace;
                 font-size: 12px;
-                background-color: rgba(0, 0, 0, 0.6);
-                color: #7fb069;
-                selection-background-color: #5a8c9a;
+                background-color: rgba(0, 0, 0, 0.7);
+                color: #d3d9e8;
+                selection-background-color: #3d5560;
                 selection-color: #ffffff;
             }
             QTextEdit:focus {
-                border: 1px solid #6a9caa;
+                border: 1px solid #466273;
             }
             QLineEdit {
-                border: 1px solid #5a8c9a;
+                border: 1px solid #3d5560;
                 border-radius: 6px;
                 padding: 6px 10px;
                 font-size: 13px;
-                background-color: rgba(90, 140, 154, 0.1);
+                background-color: rgba(45, 70, 80, 0.1);
                 color: #ffffff;
                 min-height: 18px;
             }
             QLineEdit:focus {
-                border: 1px solid #6a9caa;
+                border: 1px solid #466273;
             }
             QLabel {
-                color: #c0c6d5;
+                color: #b8becb;
                 font-weight: 500;
             }
             QTabWidget::pane {
-                border: 1px solid #5a8c9a;
+                border: 1px solid #3d5560;
                 border-radius: 8px;
-                background-color: rgba(90, 140, 154, 0.05);
+                background-color: rgba(45, 70, 80, 0.05);
                 margin-top: 6px;
             }
             QTabBar::tab {
-                background-color: rgba(90, 140, 154, 0.15);
-                color: #c0c6d5;
+                background-color: rgba(45, 70, 80, 0.15);
+                color: #b8becb;
                 padding: 6px 8px;
                 margin-right: 1px;
                 border-top-left-radius: 6px;
                 border-top-right-radius: 6px;
-                border: 1px solid #5a8c9a;
+                border: 1px solid #3d5560;
                 border-bottom: none;
                 font-weight: 500;
                 max-width: 120px;
@@ -235,15 +236,15 @@ class BadmintonLauncherGUI(QMainWindow):
                 font-size: 11px;
             }
             QTabBar::tab:selected {
-                background-color: #5a8c9a;
+                background-color: #3d5560;
                 color: #ffffff;
                 font-weight: bold;
             }
             QTabBar::tab:hover:!selected {
-                background-color: rgba(90, 140, 154, 0.25);
+                background-color: rgba(45, 70, 80, 0.25);
             }
             QProgressBar {
-                border: 1px solid #5a8c9a;
+                border: 1px solid #3d5560;
                 border-radius: 6px;
                 text-align: center;
                 background-color: rgba(0, 0, 0, 0.3);
@@ -252,7 +253,7 @@ class BadmintonLauncherGUI(QMainWindow):
                 min-height: 18px;
             }
             QProgressBar::chunk {
-                background-color: #5a8c9a;
+                background-color: #466273;
                 border-radius: 4px;
                 margin: 1px;
             }
@@ -262,49 +263,49 @@ class BadmintonLauncherGUI(QMainWindow):
                 border-radius: 5px;
             }
             QScrollBar::handle:vertical {
-                background-color: #5a8c9a;
+                background-color: #3d5560;
                 border-radius: 5px;
                 min-height: 20px;
             }
             QScrollBar::handle:vertical:hover {
-                background-color: #6a9caa;
+                background-color: #466273;
             }
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 height: 0px;
             }
             QCheckBox {
-                color: #c0c6d5;
+                color: #b8becb;
                 font-weight: 500;
             }
             QCheckBox::indicator {
                 width: 16px;
                 height: 16px;
-                border: 1px solid #5a8c9a;
+                border: 1px solid #3d5560;
                 border-radius: 3px;
-                background-color: rgba(90, 140, 154, 0.1);
+                background-color: rgba(45, 70, 80, 0.1);
             }
             QCheckBox::indicator:checked {
-                background-color: #5a8c9a;
+                background-color: #3d5560;
             }
             QSpinBox {
-                border: 1px solid #5a8c9a;
+                border: 1px solid #3d5560;
                 border-radius: 6px;
                 padding: 6px;
-                background-color: rgba(90, 140, 154, 0.1);
+                background-color: rgba(45, 70, 80, 0.1);
                 color: #ffffff;
                 font-size: 13px;
             }
             QSpinBox:hover {
-                border: 1px solid #6a9caa;
+                border: 1px solid #466273;
             }
             QSpinBox::up-button, QSpinBox::down-button {
-                background-color: #5a8c9a;
+                background-color: #3d5560;
                 border: none;
                 border-radius: 3px;
                 width: 18px;
             }
             QSpinBox::up-button:hover, QSpinBox::down-button:hover {
-                background-color: #6a9caa;
+                background-color: #466273;
             }
         """)
 
@@ -324,9 +325,9 @@ class BadmintonLauncherGUI(QMainWindow):
             color: #ffffff;
             margin: 12px;
             padding: 16px;
-            background-color: rgba(90, 140, 154, 0.2);
+            background-color: rgba(45, 70, 80, 0.12);
             border-radius: 12px;
-            border: 2px solid #5a8c9a;
+            border: 2px solid #3d5560;
             font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
             letter-spacing: 1px;
         """)
@@ -351,6 +352,7 @@ class BadmintonLauncherGUI(QMainWindow):
         self.create_training_tab()
         self.create_text_input_tab()  # 文本輸入控制
         self.create_voice_tab()  # 語音控制
+        self.create_ai_coach_tab()  # AI 教練（文字對話）
         self.create_log_tab()
         
         # 在 simulate 模式下添加解析面板
@@ -363,12 +365,12 @@ class BadmintonLauncherGUI(QMainWindow):
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setStyleSheet("""
             padding: 10px 16px;
-            background-color: rgba(180, 80, 80, 0.6);
+            background-color: rgba(120, 60, 60, 0.5);
             color: #ffffff;
             border-radius: 8px;
             font-weight: bold;
             font-size: 13px;
-            border: 1px solid #b45050;
+            border: 1px solid #7a3a3a;
             font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
             letter-spacing: 1px;
         """)
@@ -390,12 +392,12 @@ class BadmintonLauncherGUI(QMainWindow):
             self.status_label.setText("🟢 SYSTEM STATUS: CONNECTED & READY")
             self.status_label.setStyleSheet("""
                 padding: 10px 16px;
-                background-color: rgba(120, 180, 120, 0.6);
+                background-color: rgba(70, 120, 80, 0.55);
                 color: #ffffff;
                 border-radius: 8px;
                 font-weight: bold;
                 font-size: 13px;
-                border: 1px solid #78b478;
+                border: 1px solid #4f7e55;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
                 letter-spacing: 1px;
             """)
@@ -403,12 +405,12 @@ class BadmintonLauncherGUI(QMainWindow):
             self.status_label.setText("🔴 SYSTEM STATUS: DISCONNECTED")
             self.status_label.setStyleSheet("""
                 padding: 10px 16px;
-                background-color: rgba(180, 80, 80, 0.6);
+                background-color: rgba(120, 60, 60, 0.5);
                 color: #ffffff;
                 border-radius: 8px;
                 font-weight: bold;
                 font-size: 13px;
-                border: 1px solid #b45050;
+                border: 1px solid #7a3a3a;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
                 letter-spacing: 1px;
             """)
@@ -502,6 +504,14 @@ BadmintonLauncherGUI.execute_training = getattr(_ui_training, 'execute_training'
 BadmintonLauncherGUI.stop_training = getattr(_ui_training, 'stop_training')
 BadmintonLauncherGUI.create_text_input_tab = getattr(_ui_text_input, 'create_text_input_tab')
 BadmintonLauncherGUI.create_voice_tab = getattr(_ui_voice, 'create_voice_tab')
+BadmintonLauncherGUI.create_ai_coach_tab = getattr(_ui_ai_coach, 'create_ai_coach_tab')
+BadmintonLauncherGUI.send_coach_message = getattr(_ui_ai_coach, 'send_coach_message')
+BadmintonLauncherGUI._append_ai_coach_chat = getattr(_ui_ai_coach, '_append_ai_coach_chat')
+BadmintonLauncherGUI.init_ai_coach_system = getattr(_ui_ai_coach, 'init_ai_coach_system')
+BadmintonLauncherGUI.update_ai_coach_user_info = getattr(_ui_ai_coach, 'update_ai_coach_user_info')
+BadmintonLauncherGUI.clear_ai_coach_chat = getattr(_ui_ai_coach, 'clear_ai_coach_chat')
+BadmintonLauncherGUI.send_ai_coach_message = getattr(_ui_ai_coach, 'send_ai_coach_message')
+# 移除不存在的方法綁定：'_build_coach_system_prompt', '_should_use_cache', '_generate_coach_reply'
 BadmintonLauncherGUI.update_voice_status = getattr(_ui_voice, 'update_voice_status')
 BadmintonLauncherGUI.add_voice_chat_message = getattr(_ui_voice, 'add_voice_chat_message')
 BadmintonLauncherGUI.execute_text_command = getattr(_ui_text_input, 'execute_text_command')

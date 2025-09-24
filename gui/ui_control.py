@@ -16,6 +16,7 @@ from commands import read_data_from_json
 import time
 from qasync import asyncSlot
 from .ui_utils import create_area_buttons as utils_create_area_buttons
+from core.services.device_service import DeviceService
 
 def create_manual_tab(self):
     """創建手動控制標籤頁（含單機/雙機子頁）"""
@@ -303,11 +304,9 @@ def start_burst_mode(self):
         self.log_message("請先選擇發球位置")
         return
     
-    if not self.bluetooth_thread:
-        self.log_message("請先掃描設備")
-        return
-
-    if not self.bluetooth_thread.is_connected:
+    if not hasattr(self, 'device_service'):
+        self.device_service = DeviceService(self, simulate=False)
+    if not self.device_service.is_connected():
         self.log_message("請先連接發球機")
         return
     
@@ -487,23 +486,13 @@ async def _send_single_routed(self, section: str):
         await self.dual_bluetooth_manager.send_coordinated_shot(section, section, coordination_mode=coord_mode, interval=coord_interval, count=1)
         return
     
-    # 左/右或單機模式
-    # 優先使用雙機的左/右執行緒
-    if target_idx == 0 and hasattr(self, 'left_bluetooth_thread') and self.left_bluetooth_thread and self.left_bluetooth_thread.is_connected:
-        await self.left_bluetooth_thread.send_shot(section)
-        return
-    if target_idx == 1 and hasattr(self, 'right_bluetooth_thread') and self.right_bluetooth_thread and self.right_bluetooth_thread.is_connected:
-        await self.right_bluetooth_thread.send_shot(section)
-        return
-    
-    # 回退到單機執行緒
-    if not self.bluetooth_thread:
-        self.log_message("請先掃描設備")
-        return
-    if not self.bluetooth_thread.is_connected:
+    # 左/右或單機模式 → 統一送交 DeviceService
+    if not hasattr(self, 'device_service'):
+        self.device_service = DeviceService(self, simulate=False)
+    if not self.device_service.is_connected():
         self.log_message("請先連接發球機")
         return
-    await self.bluetooth_thread.send_shot(section)
+    await self.device_service.send_shot(section)
         
 def handle_shot_button_click_single(self, section):
     """單機子頁：處理發球按鈕點擊事件"""
@@ -518,13 +507,12 @@ def handle_shot_button_click_single(self, section):
 @asyncSlot()
 async def send_single_shot_single(self, section):
     """單機子頁：發送單球（使用單機 bluetooth_thread）"""
-    if not self.bluetooth_thread:
-        self.log_message("請先掃描設備")
-        return
-    if not self.bluetooth_thread.is_connected:
+    if not hasattr(self, 'device_service'):
+        self.device_service = DeviceService(self, simulate=False)
+    if not self.device_service.is_connected():
         self.log_message("請先連接發球機")
         return
-    await self.bluetooth_thread.send_shot(section)
+    await self.device_service.send_shot(section)
 
 
 def start_burst_mode_single(self):
@@ -532,10 +520,9 @@ def start_burst_mode_single(self):
     if not self.single_current_burst_section:
         self.log_message("請先選擇發球位置")
         return
-    if not self.bluetooth_thread:
-        self.log_message("請先掃描設備")
-        return
-    if not self.bluetooth_thread.is_connected:
+    if not hasattr(self, 'device_service'):
+        self.device_service = DeviceService(self, simulate=False)
+    if not self.device_service.is_connected():
         self.log_message("請先連接發球機")
         return
 

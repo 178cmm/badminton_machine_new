@@ -4,9 +4,7 @@
 此模組於 CLI simulate 環境不需要載入 PyQt5。
 """
 
-# 提供惰性載入，避免在無 PyQt5 環境下導入
-try:
-    from .main_gui import BadmintonLauncherGUI  # type: ignore
-    __all__ = ['BadmintonLauncherGUI']
-except Exception:
-    __all__ = []
+# 直接導出，避免吞掉實際的 ImportError，方便偵錯
+from .main_gui import BadmintonLauncherGUI  # type: ignore
+
+__all__ = ["BadmintonLauncherGUI"]

@@ -1596,31 +1596,37 @@ def run_once(args: argparse.Namespace, client: OpenAI, conversation_history: Opt
             print(f"🔄 當前模式：{mode_manager.get_current_mode()}")
             return mode_switch_reply, conversation_history or []
 
-    # 3) 規則匹配（支援模式分流）
-    rules_result = _handle_rules_matching(asr_text_trad, args, mode_manager)
-    if rules_result:
-        reply_text, voice = rules_result
-        _handle_tts_output(client, reply_text, voice, args)
-        autoplay_mac(args.output, enabled=not args.no_play)
-        # _log_memory_usage("規則匹配完成")  # 已停用記憶體記錄
-        return reply_text, conversation_history or []
-
-    # 4) 喚醒詞處理
-    wake_reply = _handle_wake_word(asr_text_trad, args)
-    if wake_reply:
-        _handle_tts_output(client, wake_reply, args.voice, args)
-        autoplay_mac(args.output, enabled=not args.no_play)
-        # _log_memory_usage("喚醒詞處理完成")  # 已停用記憶體記錄
-        return wake_reply, conversation_history or []
-
-    # 5) LLM 回覆（支援預載入和模式分流）
-    # 只有在思考模式下才使用 LLM
-    if mode_manager and mode_manager.is_control_mode():
-        # 控制模式下不應該到達這裡，因為規則匹配應該已經處理了
-        print("⚠️ 控制模式下不應進入 LLM 處理，使用固定引導語")
-        reply = mode_manager.get_mismatch_reply()
-    else:
+    # 思考模式：直接使用LLM回覆，跳過所有控制相關的處理
+    if mode_manager and mode_manager.is_think_mode():
+        print("🤖 思考模式：使用 LLM 生成回覆...")
         reply = _handle_llm_response(client, asr_text_trad, args, conversation_history, preload_manager, mode_manager)
+    else:
+        # 控制模式：執行所有控制相關的處理邏輯
+        # 3) 規則匹配（支援模式分流）
+        rules_result = _handle_rules_matching(asr_text_trad, args, mode_manager)
+        if rules_result:
+            reply_text, voice = rules_result
+            _handle_tts_output(client, reply_text, voice, args)
+            autoplay_mac(args.output, enabled=not args.no_play)
+            # _log_memory_usage("規則匹配完成")  # 已停用記憶體記錄
+            return reply_text, conversation_history or []
+
+        # 4) 喚醒詞處理
+        wake_reply = _handle_wake_word(asr_text_trad, args)
+        if wake_reply:
+            _handle_tts_output(client, wake_reply, args.voice, args)
+            autoplay_mac(args.output, enabled=not args.no_play)
+            # _log_memory_usage("喚醒詞處理完成")  # 已停用記憶體記錄
+            return wake_reply, conversation_history or []
+
+        # 5) 控制模式下的預設回覆
+        if mode_manager and mode_manager.is_control_mode():
+            # 控制模式下沒有匹配到任何規則，使用預設回覆
+            print("⚠️ 控制模式下規則未命中，使用固定引導語")
+            reply = mode_manager.get_mismatch_reply()
+        else:
+            # 沒有模式管理器時，使用LLM回覆
+            reply = _handle_llm_response(client, asr_text_trad, args, conversation_history, preload_manager, mode_manager)
     # _log_memory_usage("LLM 回覆完成")  # 已停用記憶體記錄
 
     # 6) TTS 輸出

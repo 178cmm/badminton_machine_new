@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                              QPushButton, QComboBox, QGroupBox, QGridLayout,
                              QSpinBox, QCheckBox, QTextEdit, QFrame)
 from PyQt5.QtCore import Qt, pyqtSignal
+from core.services.device_service import DeviceService
 from PyQt5.QtGui import QFont, QPixmap, QPalette
 
 
@@ -552,8 +553,10 @@ def start_simulation_training(self):
         parent: 父窗口實例
     """
     try:
-        # 檢查藍牙連接
-        if not hasattr(self, 'bluetooth_thread') or not self.bluetooth_thread or not self.bluetooth_thread.is_connected:
+        # 檢查連接狀態（統一 DeviceService）
+        if not hasattr(self, 'device_service'):
+            self.device_service = DeviceService(self, simulate=False)
+        if not self.device_service.is_connected():
             self.log_message("❌ 請先連接發球機")
             return
         

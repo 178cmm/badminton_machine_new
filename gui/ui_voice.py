@@ -321,6 +321,29 @@ def create_voice_tab(self):
             default_mode = "control" if self.mode_combo.currentText() == "控制模式" else "think"
             self.voice_control_tts.mode_manager.current_mode = default_mode
             
+            # 導入 IOBridge，統一語音文本入口
+            try:
+                from ui.io_bridge import IOBridge
+                if not hasattr(self, '_io_bridge'):
+                    self._io_bridge = IOBridge(self)
+
+                async def _patched_process_command(text: str):
+                    try:
+                        self._io_bridge.handle_text(text, source="voice")
+                    except Exception:
+                        # 若新路徑失敗，讓原本流程嘗試（保底）
+                        try:
+                            await original_process(text)
+                        except Exception:
+                            pass
+
+                # 保留原方法以便回退
+                original_process = getattr(self.voice_control_tts, '_process_command', None)
+                if original_process is not None:
+                    setattr(self.voice_control_tts, '_process_command', _patched_process_command)
+            except Exception:
+                pass
+
             # 使用簡化的啟動方式，避免複雜的線程操作
             def start_voice_control_simple():
                 try:

@@ -9,6 +9,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.parsers import get_basic_training_items, load_descriptions
 from core.executors import create_basic_training_executor
+from core.services.device_service import DeviceService
+from core.services.training_service import TrainingService
 from core.utils.video_config import get_video_config
 from commands import read_data_from_json
 from bluetooth import AREA_FILE_PATH
@@ -373,16 +375,12 @@ def send_shot_command(self, section):
     
     :param section: 發球的區域代碼
     """
-    if not self.bluetooth_thread:
-        self.log_message("請先掃描設備")
-        return
-    
-    if not self.bluetooth_thread.is_connected:
+    if not hasattr(self, 'device_service'):
+        self.device_service = DeviceService(self, simulate=False)
+    if not self.device_service.is_connected():
         self.log_message("請先連接發球機")
         return
-    
-    # 調用 BluetoothThread 的 send_shot 方法
-    self.create_async_task(self.bluetooth_thread.send_shot(section))
+    self.create_async_task(self.device_service.send_shot(section))
     self.log_message(f"發送指令到區域: {section}")
 
 def create_area_buttons(self, layout, start_sec, end_sec):
@@ -465,25 +463,21 @@ def create_shot_buttons(self, layout):
 @asyncSlot()
 async def send_single_shot(self, section):
     """發送單球"""
-    if not self.bluetooth_thread:
-        self.log_message("請先掃描設備")
-        return
-
-    if not self.bluetooth_thread.is_connected:
+    if not hasattr(self, 'device_service'):
+        self.device_service = DeviceService(self, simulate=False)
+    if not self.device_service.is_connected():
         self.log_message("請先連接發球機")
         return
 
-    await self.bluetooth_thread.send_shot(section)
+    await self.device_service.send_shot(section)
 
 @asyncSlot()
 async def start_training(self):
     """開始訓練"""
     self.log_message("準備開始課程訓練...")
-    if not self.bluetooth_thread:
-        self.log_message("請先掃描設備")
-        return
-
-    if not self.bluetooth_thread.is_connected:
+    if not hasattr(self, 'device_service'):
+        self.device_service = DeviceService(self, simulate=False)
+    if not self.device_service.is_connected():
         self.log_message("請先連接發球機")
         return
 
@@ -604,7 +598,7 @@ async def execute_training(self, program, interval_override=None, balls_override
                 if section == "random" and "random_sections" in program:
                     import random
                     section = random.choice(program["random_sections"])
-                await self.bluetooth_thread.send_shot(section)
+                await self.device_service.send_shot(section)
                 self.log_message(f"已發送 {section} 第 {i + 1} 顆")
                 self.progress_bar.setValue(i + 1)
                 await asyncio.sleep(interval_override)
@@ -625,7 +619,7 @@ async def execute_training(self, program, interval_override=None, balls_override
                 if section == "random" and "random_sections" in program:
                     import random
                     section = random.choice(program["random_sections"])
-                await self.bluetooth_thread.send_shot(section)
+                await self.device_service.send_shot(section)
                 self.log_message(f"已發送 {section}")
                 await asyncio.sleep(shot['delay_seconds'])
 
@@ -650,17 +644,16 @@ async def execute_single_shot(self, section, interval_override, balls_override):
             self.log_message("請選擇發球間隔與球數")
             return
         self.log_message(f"execute_single_shot: section={section}, interval={interval_override}, balls={balls_override}")
-        if not self.bluetooth_thread:
-            self.log_message("execute_single_shot: 未初始化藍牙，請先掃描設備")
-            return
-        if not self.bluetooth_thread.is_connected:
+        if not hasattr(self, 'device_service'):
+            self.device_service = DeviceService(self, simulate=False)
+        if not self.device_service.is_connected():
             self.log_message("execute_single_shot: 未連接發球機")
             return
         total = balls_override
         for i in range(total):
             if self.stop_flag:
                 raise asyncio.CancelledError()
-            result = await self.bluetooth_thread.send_shot(section)
+            result = await self.device_service.send_shot(section)
             if not result:
                 self.log_message("execute_single_shot: 發送指令未成功 (returned False)")
             self.progress_bar.setValue(i + 1)
