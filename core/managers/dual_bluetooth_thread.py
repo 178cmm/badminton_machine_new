@@ -13,7 +13,7 @@ import time
 from typing import Optional, Dict, List, Tuple
 from PyQt5.QtCore import QThread, pyqtSignal
 from bleak import BleakScanner, BleakClient
-from commands import read_data_from_json, calculate_crc16_modbus, create_shot_command, parse_area_params
+from commands import read_data_from_json, calculate_crc16_modbus, create_shot_command, parse_area_params, get_area_params
 
 
 class DualBluetoothThread(QThread):
@@ -52,12 +52,12 @@ class DualBluetoothThread(QThread):
         self.last_shot_time = 0
         self.shot_cooldown = 0.5  # 發球冷卻時間（秒）
     
-    async def find_device(self, timeout: float = 10.0) -> Optional[str]:
+    async def find_device(self, timeout: float = 5.0) -> Optional[str]:
         """
-        尋找發球機設備
+        尋找發球機設備（優化版本）
         
         Args:
-            timeout: 掃描超時時間
+            timeout: 掃描超時時間（減少到5秒）
             
         Returns:
             找到的設備地址，如果未找到則返回 None
@@ -68,7 +68,7 @@ class DualBluetoothThread(QThread):
         
         self._scanning = True
         try:
-            # 掃描設備
+            # 優化：減少掃描超時時間
             devices = await BleakScanner.discover(timeout=timeout)
             
             for device in devices or []:
@@ -183,7 +183,7 @@ class DualBluetoothThread(QThread):
         發送發球指令
         
         Args:
-            area_section: 發球區域代碼
+            area_section: 發球區域代碼 (如 "sec1_1", "sec1_2")
             machine_specific: 是否使用機器特定參數
             
         Returns:
@@ -195,33 +195,17 @@ class DualBluetoothThread(QThread):
             if current_time - self.last_shot_time < self.shot_cooldown:
                 await asyncio.sleep(self.shot_cooldown - (current_time - self.last_shot_time))
             
-            # 載入區域數據
-            area_data = read_data_from_json(self.area_file_path)
-            if not area_data:
-                self.error_occurred.emit(self.machine_type, "無法載入發球區域數據")
-                return False
-            
             # 選擇參數來源
             if machine_specific and self.machine_type in ["left", "right"]:
                 # 使用機器特定參數
-                section_key = f"{self.machine_type}_machine"
-                if section_key in area_data and area_section in area_data[section_key]:
-                    params_str = area_data[section_key][area_section]
-                else:
-                    # 回退到通用參數
-                    params_str = area_data["section"].get(area_section)
+                machine_type_key = f"{self.machine_type}_machine"
+                params = get_area_params(area_section, machine_type_key, self.area_file_path)
             else:
                 # 使用通用參數
-                params_str = area_data["section"].get(area_section)
+                params = get_area_params(area_section, "section", self.area_file_path)
             
-            if not params_str:
-                self.error_occurred.emit(self.machine_type, f"找不到區域 {area_section} 的參數")
-                return False
-            
-            # 解析參數
-            params = parse_area_params(params_str)
             if not params:
-                self.error_occurred.emit(self.machine_type, f"區域 {area_section} 參數格式錯誤")
+                self.error_occurred.emit(self.machine_type, f"找不到區域 {area_section} 的參數")
                 return False
             
             # 檢查連接狀態
@@ -330,9 +314,9 @@ class DualMachineCoordinator:
         Args:
             left_area: 左發球機發球區域
             right_area: 右發球機發球區域
-            coordination_mode: 協調模式 ("alternate", "simultaneous", "sequence")
-            interval: 模式相關的間隔時間（秒）。對 alternate/sequence 生效
-            count: 發球輪數（次），對 alternate/simultaneous/sequence 均可生效
+            coordination_mode: 協調模式 ("alternate", "simultaneous")
+            interval: 模式相關的間隔時間（秒）。對 alternate 生效
+            count: 發球數（球），alternate為總球數，simultaneous為每台發球數
             
         Returns:
             是否成功發送
@@ -346,9 +330,6 @@ class DualMachineCoordinator:
                 
             elif coordination_mode == "simultaneous":
                 return await self._simultaneous_shots(left_area, right_area, count=count)
-                
-            elif coordination_mode == "sequence":
-                return await self._sequence_shots(left_area, right_area, interval=interval, count=count)
             
             return False
             
@@ -357,52 +338,65 @@ class DualMachineCoordinator:
             return False
     
     async def _alternate_shots(self, left_area: str, right_area: str, interval: float, count: int) -> bool:
-        """交替發球：左-右為一組，重複 count 組，兩次間隔 interval 秒"""
+        """交替發球：左-右交替，總共發 count 球，發送命令後立即等待間隔時間"""
         try:
-            for _ in range(max(1, count)):
-                left_result = await self.left_thread.send_shot(left_area)
-                if not left_result:
+            total_shots = max(1, count)
+            for i in range(total_shots):
+                if i % 2 == 0:  # 偶數次發左球
+                    result = await self.left_thread.send_shot(left_area)
+                    machine_name = "左發球機"
+                else:  # 奇數次發右球
+                    result = await self.right_thread.send_shot(right_area)
+                    machine_name = "右發球機"
+                
+                if not result:
+                    print(f"❌ {machine_name} 發球失敗")
                     return False
-                await asyncio.sleep(max(0.0, interval))
-                right_result = await self.right_thread.send_shot(right_area)
-                if not right_result:
-                    return False
-                # 組間隔可與 interval 相同，這裡不額外增加
+                
+                print(f"✅ {machine_name} 發球命令已發送 ({i+1}/{total_shots})")
+                
+                # 如果不是最後一球，發送命令後立即等待間隔時間（不等待球實際發出）
+                if i < total_shots - 1:
+                    print(f"⏱️ 等待間隔時間: {interval}秒")
+                    await asyncio.sleep(max(0.0, interval))
             return True
-        except Exception:
+        except Exception as e:
+            print(f"❌ 交替發球失敗: {e}")
             return False
     
     async def _simultaneous_shots(self, left_area: str, right_area: str, count: int) -> bool:
-        """同時發球：每組同時觸發，重複 count 組"""
+        """同時發球：左右發球機同時各發 count 球，總共發 count*2 球"""
         try:
-            for _ in range(max(1, count)):
+            total_shots = max(1, count)
+            for shot_num in range(total_shots):
+                print(f"🎯 同時發球第 {shot_num + 1} 組")
                 start_time = time.time()
+                
+                # 同時發送命令給兩台發球機
+                print(f"🔍 準備同時發送: 左發球機({left_area}) + 右發球機({right_area})")
+                print(f"🔍 左發球機線程: {self.left_thread.machine_type}, 地址: {self.left_thread.device_address}")
+                print(f"🔍 右發球機線程: {self.right_thread.machine_type}, 地址: {self.right_thread.device_address}")
+                
                 left_task = self.left_thread.send_shot(left_area)
                 right_task = self.right_thread.send_shot(right_area)
                 left_result, right_result = await asyncio.gather(left_task, right_task)
+                
                 sync_time = time.time() - start_time
+                print(f"⚡ 同步發送時間: {sync_time:.3f}s")
+                
                 if sync_time > self.sync_tolerance:
-                    print(f"⚠️ 發球同步時間: {sync_time:.3f}s (容差: {self.sync_tolerance}s)")
+                    print(f"⚠️ 同步時間超過容差: {sync_time:.3f}s > {self.sync_tolerance}s")
+                
                 if not (left_result and right_result):
+                    print(f"❌ 同時發球失敗: 左={left_result}, 右={right_result}")
                     return False
+                
+                print(f"✅ 同時發球成功: 左({left_area}) + 右({right_area})")
             return True
-        except Exception:
+        except Exception as e:
+            print(f"❌ 同時發球失敗: {e}")
             return False
     
-    async def _sequence_shots(self, left_area: str, right_area: str, interval: float, count: int) -> bool:
-        """序列發球：左先右後（或可擴展），兩次間隔 interval 秒，重複 count 組"""
-        try:
-            for _ in range(max(1, count)):
-                left_result = await self.left_thread.send_shot(left_area)
-                if not left_result:
-                    return False
-                await asyncio.sleep(max(0.0, interval))
-                right_result = await self.right_thread.send_shot(right_area)
-                if not right_result:
-                    return False
-            return True
-        except Exception:
-            return False
     
     def is_both_connected(self) -> bool:
         """檢查兩台發球機是否都已連接"""

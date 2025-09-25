@@ -81,15 +81,30 @@ def create_area_buttons(self, layout, start_sec, end_sec, handler=None):
     col = 0
     max_cols = 5
     for section_num in range(start_sec, end_sec + 1):
-        section = f"sec{section_num}"
-        button = QPushButton(section)
+        # 創建兩個按鈕：sec1_1 和 sec1_2
+        section_1 = f"sec{section_num}_1"
+        section_2 = f"sec{section_num}_2"
+        
+        # 第一個按鈕 (sec1_1)
+        button_1 = QPushButton(section_1)
         if handler is None:
             # 回退到預設處理器
-            button.clicked.connect(lambda checked, s=section: self.handle_shot_button_click(s))
+            button_1.clicked.connect(lambda checked, s=section_1: self.handle_shot_button_click(s))
         else:
-            button.clicked.connect(lambda checked, s=section: handler(s))
-        layout.addWidget(button, row, col)
+            button_1.clicked.connect(lambda checked, s=section_1: handler(s))
+        layout.addWidget(button_1, row, col)
         col += 1
+        
+        # 第二個按鈕 (sec1_2)
+        button_2 = QPushButton(section_2)
+        if handler is None:
+            # 回退到預設處理器
+            button_2.clicked.connect(lambda checked, s=section_2: self.handle_shot_button_click(s))
+        else:
+            button_2.clicked.connect(lambda checked, s=section_2: handler(s))
+        layout.addWidget(button_2, row, col)
+        col += 1
+        
         if col >= max_cols:
             col = 0
             row += 1

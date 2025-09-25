@@ -65,3 +65,40 @@ def parse_area_params(area_str):
     except Exception as e:
         print(f"解析區域參數失敗: {e}")
     return None
+
+def get_area_params(area_section, machine_type="section", area_file_path="area.json"):
+    """
+    從 area.json 獲取指定區域的參數
+    
+    Args:
+        area_section: 區域代碼 (如 "sec1_1", "sec1_2")
+        machine_type: 機器類型 ("section", "left_machine", "right_machine", "center_machine")
+        area_file_path: area.json 文件路徑
+        
+    Returns:
+        解析後的參數字典，如果失敗返回 None
+    """
+    try:
+        # 讀取 area.json 文件
+        area_data = read_data_from_json(area_file_path)
+        if not area_data:
+            print(f"無法讀取 {area_file_path}")
+            return None
+        
+        # 獲取指定機器類型的參數
+        if machine_type in area_data and area_section in area_data[machine_type]:
+            params_str = area_data[machine_type][area_section]
+        else:
+            # 回退到通用 section 參數
+            if area_section in area_data.get("section", {}):
+                params_str = area_data["section"][area_section]
+            else:
+                print(f"找不到區域 {area_section} 在 {machine_type} 中的參數")
+                return None
+        
+        # 解析參數字符串
+        return parse_area_params(params_str)
+        
+    except Exception as e:
+        print(f"獲取區域參數失敗: {e}")
+        return None

@@ -46,7 +46,7 @@ class DualBluetoothManager:
     
     async def scan_dual_devices(self) -> bool:
         """
-        掃描雙發球機設備
+        掃描雙發球機設備（修復版本）
         
         Returns:
             是否成功開始掃描
@@ -59,8 +59,20 @@ class DualBluetoothManager:
                 self.gui.dual_scan_button.setEnabled(False)
                 self.gui.dual_scan_button.setText("掃描中...")
             
-            # 清空之前的設備列表
+            # 清空之前的設備列表和UI
             self.found_devices.clear()
+            
+            # 清空設備選擇下拉選單
+            if hasattr(self.gui, 'left_device_combo'):
+                self.gui.left_device_combo.clear()
+                self.gui.left_device_combo.addItem("請先掃描設備")
+            if hasattr(self.gui, 'right_device_combo'):
+                self.gui.right_device_combo.clear()
+                self.gui.right_device_combo.addItem("請先掃描設備")
+            
+            # 禁用連接按鈕
+            if hasattr(self.gui, 'connect_dual_button'):
+                self.gui.connect_dual_button.setEnabled(False)
             
             # 開始掃描
             devices = await self._discover_devices()
@@ -84,17 +96,47 @@ class DualBluetoothManager:
     
     async def _discover_devices(self) -> List[Dict]:
         """
-        發現發球機設備
+        發現發球機設備（修復版本，處理事件循環問題）
         
         Returns:
             發現的設備列表
         """
         from bleak import BleakScanner
+        import threading
+        import queue
         
         devices = []
         try:
-            # 掃描設備
-            discovered = await BleakScanner.discover(timeout=10.0)
+            # 在線程中運行掃描以避免事件循環問題
+            result_queue = queue.Queue()
+            
+            def run_scan_in_thread():
+                try:
+                    # 創建新的事件循環
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    
+                    # 運行掃描
+                    discovered = new_loop.run_until_complete(BleakScanner.discover(timeout=5.0))
+                    result_queue.put(('success', discovered))
+                except Exception as e:
+                    result_queue.put(('error', e))
+                finally:
+                    new_loop.close()
+            
+            # 在後台線程中運行掃描
+            scan_thread = threading.Thread(target=run_scan_in_thread, daemon=True)
+            scan_thread.start()
+            
+            # 等待結果（最多等待10秒）
+            try:
+                status, discovered = result_queue.get(timeout=10)
+                if status == 'error':
+                    self.gui.log_message(f"❌ 雙發球機掃描失敗: {discovered}")
+                    return devices
+            except queue.Empty:
+                self.gui.log_message("❌ 雙發球機掃描超時")
+                return devices
             
             for device in discovered or []:
                 try:
@@ -385,13 +427,45 @@ class DualBluetoothManager:
             self._setup_machine_signals(self.left_machine, "左發球機")
             self._setup_machine_signals(self.right_machine, "右發球機")
             
-            # 並行連接
-            left_task = self.left_machine.connect_device(left_device['address'])
-            right_task = self.right_machine.connect_device(right_device['address'])
+            # 並行連接 - 在線程中運行異步連接
+            import threading
+            import queue
             
-            left_result, right_result = await asyncio.gather(
-                left_task, right_task, return_exceptions=True
-            )
+            result_queue = queue.Queue()
+            
+            def run_dual_connect_in_thread():
+                try:
+                    # 創建新的事件循環
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    
+                    # 並行連接
+                    left_task = self.left_machine.connect_device(left_device['address'])
+                    right_task = self.right_machine.connect_device(right_device['address'])
+                    
+                    left_result, right_result = new_loop.run_until_complete(
+                        asyncio.gather(left_task, right_task, return_exceptions=True)
+                    )
+                    
+                    result_queue.put(('success', left_result, right_result))
+                except Exception as e:
+                    result_queue.put(('error', e, None))
+                finally:
+                    new_loop.close()
+            
+            # 在後台線程中運行連接
+            connect_thread = threading.Thread(target=run_dual_connect_in_thread, daemon=True)
+            connect_thread.start()
+            
+            # 等待結果（最多等待15秒）
+            try:
+                status, left_result, right_result = result_queue.get(timeout=15)
+                if status == 'error':
+                    self.gui.log_message(f"❌ 雙發球機連接失敗: {left_result}")
+                    return False
+            except queue.Empty:
+                self.gui.log_message("❌ 雙發球機連接超時")
+                return False
             
             # 檢查連接結果
             left_connected = not isinstance(left_result, Exception) and self.left_machine.is_connected
@@ -523,7 +597,13 @@ class DualBluetoothManager:
             if self.connection_monitor_task and not self.connection_monitor_task.done():
                 self.connection_monitor_task.cancel()
             
-            self.connection_monitor_task = asyncio.create_task(self._monitor_connections())
+            try:
+                import asyncio
+                loop = asyncio.get_running_loop()
+                self.connection_monitor_task = loop.create_task(self._monitor_connections())
+            except RuntimeError:
+                self.gui.log_message("❌ 無法創建連接監控任務")
+                return
             self.gui.log_message("🔍 開始監控雙發球機連接狀態")
             
         except Exception as e:
@@ -619,9 +699,9 @@ class DualBluetoothManager:
         Args:
             left_area: 左發球機發球區域
             right_area: 右發球機發球區域
-            coordination_mode: 協調模式 ("alternate", "simultaneous", "sequence")
-            interval: 模式相關的間隔時間（秒）。對 alternate/sequence 生效
-            count: 發球輪數（次）
+            coordination_mode: 協調模式 ("alternate", "simultaneous")
+            interval: 模式相關的間隔時間（秒）。對 alternate 生效
+            count: 發球數（球），alternate為總球數，simultaneous為每台發球數
             
         Returns:
             是否成功發送

@@ -12,7 +12,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from bluetooth import BluetoothThread
-from commands import read_data_from_json, calculate_crc16_modbus, create_shot_command, parse_area_params
+from commands import read_data_from_json, calculate_crc16_modbus, create_shot_command, parse_area_params, get_area_params
 # 舊版語音控制已移除，僅使用 TTS 版本
 VoiceControl = None
 # 新的 TTS 語音控制系統
@@ -58,8 +58,11 @@ class BadmintonLauncherGUI(QMainWindow):
         try:
             self.loop = asyncio.get_running_loop()
         except RuntimeError:
-            # 如果沒有運行的事件循環，稍後再設置
-            self.loop = None
+            # 如果沒有運行的事件循環，嘗試獲取當前事件循環
+            try:
+                self.loop = asyncio.get_event_loop()
+            except RuntimeError:
+                self.loop = None
     
     def create_async_task(self, coro):
         """安全地創建異步任務"""
@@ -71,11 +74,69 @@ class BadmintonLauncherGUI(QMainWindow):
         except RuntimeError:
             # 如果沒有運行的事件循環，嘗試使用主循環
             if hasattr(self, 'loop') and self.loop:
-                return self.loop.create_task(coro)
+                try:
+                    return self.loop.create_task(coro)
+                except Exception as e:
+                    self.log_message(f"❌ 創建異步任務失敗: {e}")
+                    return None
             else:
-                # 最後的後備方案：直接創建任務
-                import asyncio
-                return asyncio.create_task(coro)
+                # 嘗試獲取當前事件循環
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop and not loop.is_closed():
+                        return loop.create_task(coro)
+                except Exception:
+                    pass
+                
+                # 嘗試創建新的事件循環（在線程中）
+                try:
+                    import threading
+                    import queue
+                    
+                    result_queue = queue.Queue()
+                    
+                    def run_in_thread():
+                        try:
+                            new_loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(new_loop)
+                            result = new_loop.run_until_complete(coro)
+                            result_queue.put(('success', result))
+                        except Exception as e:
+                            result_queue.put(('error', e))
+                        finally:
+                            new_loop.close()
+                    
+                    thread = threading.Thread(target=run_in_thread, daemon=True)
+                    thread.start()
+                    
+                    # 返回一個假的任務對象，表示已開始執行
+                    class FakeTask:
+                        def __init__(self):
+                            self.done = False
+                            self.result = None
+                            self.exception = None
+                        
+                        def add_done_callback(self, callback):
+                            # 在後台檢查結果
+                            def check_result():
+                                if not result_queue.empty():
+                                    status, result = result_queue.get()
+                                    if status == 'success':
+                                        self.result = result
+                                    else:
+                                        self.exception = result
+                                    self.done = True
+                                    callback(self)
+                                else:
+                                    # 繼續檢查
+                                    threading.Timer(0.1, check_result).start()
+                            check_result()
+                    
+                    return FakeTask()
+                    
+                except Exception as e:
+                    self.log_message(f"⚠️ 創建後備異步任務失敗: {e}")
+                    return None
 
     def init_ui(self):
         """初始化使用者介面"""

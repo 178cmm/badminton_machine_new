@@ -10,7 +10,7 @@
 import asyncio
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QLabel, QPushButton, QComboBox, QTextEdit, 
                              QGroupBox, QTabWidget, QProgressBar, QDialog, QGridLayout, QHBoxLayout, 
-                             QScrollArea, QSpinBox, QCheckBox, QSlider, QButtonGroup, QRadioButton)
+                             QScrollArea, QSpinBox, QDoubleSpinBox, QCheckBox, QSlider, QButtonGroup, QRadioButton)
 from PyQt5.QtCore import Qt, QTimer
 from commands import read_data_from_json
 import time
@@ -173,29 +173,53 @@ def _create_dual_manual_tab(self) -> QWidget:
 
     # === 協調設定容器（放模式/間隔/次數） ===
     self.dual_coord_settings_container = QWidget()
-    coord_container_layout = QHBoxLayout(self.dual_coord_settings_container)
+    coord_container_layout = QVBoxLayout(self.dual_coord_settings_container)
     coord_container_layout.setContentsMargins(0, 0, 0, 0)
+    coord_container_layout.setSpacing(8)
 
+    # 第一行：模式選擇
+    mode_row = QHBoxLayout()
+    mode_row.addWidget(QLabel("🎯 協調模式:"))
     self.coordination_mode_combo = QComboBox()
-    self.coordination_mode_combo.addItems(["alternate(交替)", "simultaneous(同時)", "sequence(序列)"])
+    self.coordination_mode_combo.addItems(["alternate(交替)", "simultaneous(同時)"])
     self.coordination_mode_combo.setEnabled(False)
-    coord_container_layout.addWidget(QLabel("模式:"))
-    coord_container_layout.addWidget(self.coordination_mode_combo)
+    self.coordination_mode_combo.setMinimumWidth(150)
+    mode_row.addWidget(self.coordination_mode_combo)
+    mode_row.addStretch()
+    coord_container_layout.addLayout(mode_row)
 
-    self.coordination_interval_spin = QSpinBox()
-    self.coordination_interval_spin.setRange(0, 10)
-    self.coordination_interval_spin.setValue(0)
+    # 第二行：間隔和球數設定
+    settings_row = QHBoxLayout()
+    
+    # 間隔設定
+    interval_group = QHBoxLayout()
+    interval_group.addWidget(QLabel("⏱️ 間隔:"))
+    self.coordination_interval_spin = QDoubleSpinBox()
+    self.coordination_interval_spin.setRange(0.0, 10.0)  # 0-10秒
+    self.coordination_interval_spin.setValue(2.0)        # 預設2秒
+    self.coordination_interval_spin.setSingleStep(0.1)   # 每次調整0.1秒
+    self.coordination_interval_spin.setDecimals(1)       # 顯示1位小數
     self.coordination_interval_spin.setSuffix(" 秒")
     self.coordination_interval_spin.setEnabled(False)
-    coord_container_layout.addWidget(QLabel("間隔:"))
-    coord_container_layout.addWidget(self.coordination_interval_spin)
-
+    self.coordination_interval_spin.setMinimumWidth(100)
+    interval_group.addWidget(self.coordination_interval_spin)
+    settings_row.addLayout(interval_group)
+    
+    settings_row.addSpacing(20)
+    
+    # 球數設定
+    count_group = QHBoxLayout()
+    count_group.addWidget(QLabel("⚽ 球數:"))
     self.coordination_count_spin = QSpinBox()
     self.coordination_count_spin.setRange(1, 100)
-    self.coordination_count_spin.setValue(1)
+    self.coordination_count_spin.setValue(5)
     self.coordination_count_spin.setEnabled(False)
-    coord_container_layout.addWidget(QLabel("次數:"))
-    coord_container_layout.addWidget(self.coordination_count_spin)
+    self.coordination_count_spin.setMinimumWidth(80)
+    count_group.addWidget(self.coordination_count_spin)
+    settings_row.addLayout(count_group)
+    
+    settings_row.addStretch()
+    coord_container_layout.addLayout(settings_row)
 
     burst_layout.addWidget(self.dual_coord_settings_container)
 
@@ -230,6 +254,10 @@ def _create_dual_manual_tab(self) -> QWidget:
         self.coordination_mode_combo.setEnabled(is_coord)
         self.coordination_interval_spin.setEnabled(is_coord)
         self.coordination_count_spin.setEnabled(is_coord)
+        
+        # 顯示/隱藏協調模式說明
+        if hasattr(self, 'coord_info_label'):
+            self.coord_info_label.setVisible(is_coord)
 
         self.dual_standard_settings_container.setVisible(not is_coord)
     self.dual_target_combo.currentIndexChanged.connect(on_dual_target_changed)
@@ -251,6 +279,14 @@ def _create_dual_manual_tab(self) -> QWidget:
     burst_control_layout.addStretch()
     burst_layout.addLayout(burst_control_layout)
 
+    # 協調模式說明
+    coord_info = QLabel("💡 協調模式說明：交替=總球數，同時=每台發球數")
+    coord_info.setStyleSheet("color: #4ecdc4; font-size: 11px; font-weight: bold;")
+    coord_info.setWordWrap(True)
+    coord_info.setVisible(False)  # 預設隱藏，只在協調模式時顯示
+    self.coord_info_label = coord_info
+    burst_layout.addWidget(coord_info)
+    
     burst_info = QLabel("💡 雙機連發：可選左/右/協調與模式參數")
     burst_info.setStyleSheet("color: #ffcc00; font-size: 11px;")
     burst_info.setWordWrap(True)
@@ -287,7 +323,9 @@ def _create_dual_manual_tab(self) -> QWidget:
 
 
 def handle_shot_button_click(self, section):
-    """處理發球按鈕點擊事件，根據模式決定單發或連發"""
+    """處理發球按鈕點擊事件，根據模式決定單發或連發（修復版本）"""
+    self.log_message(f"🔍 雙發球機手動控制 - 按鈕點擊: {section}")
+    
     if hasattr(self, 'burst_mode_radio') and self.burst_mode_radio.isChecked():
         # 連發模式：設定目標位置並準備連發
         self.current_burst_section = section
@@ -295,18 +333,59 @@ def handle_shot_button_click(self, section):
         self.log_message(f"連發模式：已選擇位置 {section}，請設定球數和間隔後開始連發")
     else:
         # 單發模式：直接發球
-        self.send_single_shot(section)
+        self.log_message(f"🔍 雙發球機手動控制 - 單發模式，準備發送: {section}")
+        try:
+            self.log_message(f"🔍 準備調用 send_single_shot: {section}")
+            # 創建異步任務來調用 send_single_shot
+            self.create_async_task(send_single_shot(self, section))
+            self.log_message(f"🔍 send_single_shot 調用完成: {section}")
+        except Exception as e:
+            self.log_message(f"❌ send_single_shot 調用失敗: {e}")
+            import traceback
+            traceback.print_exc()
 
 
 def start_burst_mode(self):
-    """開始連發模式"""
+    """開始連發模式（修復版本）"""
     if not self.current_burst_section:
         self.log_message("請先選擇發球位置")
         return
     
-    if not hasattr(self, 'device_service'):
-        self.device_service = DeviceService(self, simulate=False)
-    if not self.device_service.is_connected():
+    # 檢查連接狀態（支持雙發球機）
+    is_connected = False
+    
+    # 檢查雙發球機連接狀態
+    if hasattr(self, 'dual_bluetooth_manager') and self.dual_bluetooth_manager:
+        dual_connected = self.dual_bluetooth_manager.is_dual_connected()
+        self.log_message(f"🔍 雙發球機連接狀態: {dual_connected}")
+        if dual_connected:
+            is_connected = True
+        else:
+            # 檢查個別機器狀態
+            left_status = "未設置"
+            right_status = "未設置"
+            if hasattr(self.dual_bluetooth_manager, 'left_machine') and self.dual_bluetooth_manager.left_machine:
+                left_status = f"已連接: {self.dual_bluetooth_manager.left_machine.is_connected}"
+            if hasattr(self.dual_bluetooth_manager, 'right_machine') and self.dual_bluetooth_manager.right_machine:
+                right_status = f"已連接: {self.dual_bluetooth_manager.right_machine.is_connected}"
+            self.log_message(f"🔍 左發球機狀態: {left_status}")
+            self.log_message(f"🔍 右發球機狀態: {right_status}")
+    
+    # 檢查單發球機連接狀態
+    if not is_connected:
+        if hasattr(self, 'device_service'):
+            if not self.device_service:
+                self.device_service = DeviceService(self, simulate=False)
+            single_connected = self.device_service.is_connected()
+            self.log_message(f"🔍 單發球機連接狀態: {single_connected}")
+            is_connected = single_connected
+        else:
+            self.device_service = DeviceService(self, simulate=False)
+            single_connected = self.device_service.is_connected()
+            self.log_message(f"🔍 單發球機連接狀態: {single_connected}")
+            is_connected = single_connected
+    
+    if not is_connected:
         self.log_message("請先連接發球機")
         return
     
@@ -321,7 +400,7 @@ def start_burst_mode(self):
     self.log_message(f"開始連發：{self.current_burst_section}，{ball_count}球，間隔{interval}秒")
     
     # 創建連發任務
-    self.burst_task = asyncio.create_task(self.execute_burst_sequence())
+    self.burst_task = self.create_async_task(self.execute_burst_sequence())
 
 
 def stop_burst_mode(self):
@@ -350,18 +429,19 @@ async def execute_burst_sequence(self):
         is_coord = target_idx == 2
         
         if is_coord and hasattr(self, 'dual_bluetooth_manager') and self.dual_bluetooth_manager:
-            # 使用協調器處理連發，將 ball_count 作為協調 count，interval 作為交替/序列間隔
-            mode_map = {0: "alternate", 1: "simultaneous", 2: "sequence"}
+            # 使用協調器處理連發，使用協調設定的球數和間隔
+            mode_map = {0: "alternate", 1: "simultaneous"}
             coord_mode = mode_map.get(self.coordination_mode_combo.currentIndex() if hasattr(self, 'coordination_mode_combo') else 0, "alternate")
             coord_interval = float(self.coordination_interval_spin.value()) if hasattr(self, 'coordination_interval_spin') else float(interval)
+            coord_count = int(self.coordination_count_spin.value()) if hasattr(self, 'coordination_count_spin') else ball_count
             # 左右同一區域；若未來需要左右不同，可延伸 UI
             success = await self.dual_bluetooth_manager.send_coordinated_shot(
-                section, section, coordination_mode=coord_mode, interval=coord_interval, count=ball_count
+                section, section, coordination_mode=coord_mode, interval=coord_interval, count=coord_count
             )
             if not success:
                 self.log_message("協調連發失敗")
             else:
-                self.log_message(f"協調連發完成：{coord_mode} x{ball_count}")
+                self.log_message(f"協調連發完成：{coord_mode} x{coord_count}")
         else:
             # 單機（左或右或單機模式）逐球送出
             for i in range(ball_count):
@@ -369,7 +449,7 @@ async def execute_burst_sequence(self):
                     break
                 
                 # 發送單球（路由）
-                await self._send_single_routed(section)
+                await _send_single_routed(self, section)
                 
                 # 更新狀態
                 remaining = ball_count - i - 1
@@ -460,33 +540,63 @@ def log_message(self, message):
     else:
         print(f"[手動控制] {message}")
 
-@asyncSlot()
 async def send_single_shot(self, section):
-    """發送單球"""
+    """發送單球（修復版本）"""
+    self.log_message(f"🔍 send_single_shot 被調用: {section}")
     # 若為協調模式則使用協調發送，否則根據目標路由到左/右或單機
     try:
-        await self._send_single_routed(section)
+        await _send_single_routed(self, section)
     except Exception as e:
         self.log_message(f"發送失敗：{e}")
+        import traceback
+        traceback.print_exc()
 
 
 async def _send_single_routed(self, section: str):
-    """根據目標（左/右/協調）路由單球發送"""
+    """根據目標（左/右/協調）路由單球發送（修復版本）"""
+    self.log_message(f"🔍 _send_single_routed 被調用: {section}")
     # 目標索引：0 左，1 右，2 協調
     target_idx = self.dual_target_combo.currentIndex() if hasattr(self, 'dual_target_combo') else 0
+    self.log_message(f"🔍 目標索引: {target_idx}")
     
     # 協調模式
     if target_idx == 2:
         if not hasattr(self, 'dual_bluetooth_manager') or not self.dual_bluetooth_manager:
             self.log_message("請先連接雙發球機")
             return
-        mode_map = {0: "alternate", 1: "simultaneous", 2: "sequence"}
+        if not self.dual_bluetooth_manager.is_dual_connected():
+            self.log_message("雙發球機未完全連接")
+            return
+        mode_map = {0: "alternate", 1: "simultaneous"}
         coord_mode = mode_map.get(self.coordination_mode_combo.currentIndex() if hasattr(self, 'coordination_mode_combo') else 0, "alternate")
         coord_interval = float(self.coordination_interval_spin.value()) if hasattr(self, 'coordination_interval_spin') else 0.0
         await self.dual_bluetooth_manager.send_coordinated_shot(section, section, coordination_mode=coord_mode, interval=coord_interval, count=1)
         return
     
-    # 左/右或單機模式 → 統一送交 DeviceService
+    # 左/右模式：檢查目標發球機連接狀態
+    if target_idx in [0, 1]:  # 左發球機或右發球機
+        if not hasattr(self, 'dual_bluetooth_manager') or not self.dual_bluetooth_manager:
+            self.log_message("請先連接雙發球機")
+            return
+        
+        # 檢查目標發球機是否連接
+        machine_type = "left" if target_idx == 0 else "right"
+        thread = self.dual_bluetooth_manager.get_machine_thread(machine_type)
+        
+        if not thread:
+            self.log_message(f"{machine_type}發球機線程未找到")
+            return
+            
+        if not thread.is_connected:
+            self.log_message(f"{machine_type}發球機未連接")
+            return
+        
+        # 發送單球到目標發球機
+        self.log_message(f"🎯 發送單球到{machine_type}發球機: {section}")
+        await thread.send_shot(section)
+        return
+    
+    # 單機模式 → 使用 DeviceService
     if not hasattr(self, 'device_service'):
         self.device_service = DeviceService(self, simulate=False)
     if not self.device_service.is_connected():
@@ -536,7 +646,7 @@ def start_burst_mode_single(self):
     update_burst_status_single(self, f"🚀 連發中：{self.single_current_burst_section} ({ball_count}球，間隔{interval}秒)")
     self.log_message(f"單機開始連發：{self.single_current_burst_section}，{ball_count}球，間隔{interval}秒")
 
-    self.single_burst_task = asyncio.create_task(execute_burst_sequence_single(self))
+    self.single_burst_task = self.create_async_task(execute_burst_sequence_single(self))
 
 
 def stop_burst_mode_single(self):

@@ -17,7 +17,7 @@ import os
 # 將父目錄加入路徑以便匯入上層模組
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from commands import read_data_from_json, calculate_crc16_modbus, create_shot_command, parse_area_params
+from commands import read_data_from_json, calculate_crc16_modbus, create_shot_command, parse_area_params, get_area_params
 from core.utils.shot_selector import ShotZoneSelector
 
 

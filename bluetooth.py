@@ -2,7 +2,7 @@
 import asyncio
 from bleak import BleakScanner, BleakClient
 from PyQt5.QtCore import QThread, pyqtSignal
-from commands import read_data_from_json, calculate_crc16_modbus, create_shot_command, parse_area_params
+from commands import read_data_from_json, calculate_crc16_modbus, create_shot_command, parse_area_params, get_area_params
 
 # 藍牙通信設定
 # 設定目標設備名稱前綴和寫入特徵UUID
@@ -49,60 +49,85 @@ class BluetoothThread(QThread):
         return self.machine_position
         
     async def find_device(self):
-        """尋找發球機設備（加入超時及重試，避免事件迴圈衝突）"""
+        """尋找發球機設備（修復版本，支持多設備掃描）"""
         if self._scanning:
             self.error_occurred.emit("掃描已在進行中")
             return None
         self._scanning = True
         try:
-            max_scans = 3
-            for _ in range(max_scans):
+            # 收集所有找到的設備
+            found_devices = []
+            max_scans = 2
+            scan_timeout = 3.0
+            
+            for attempt in range(max_scans):
                 try:
-                    devices = await BleakScanner.discover(timeout=5.0)
+                    devices = await BleakScanner.discover(timeout=scan_timeout)
                 except TypeError:
                     # 某些平台/版本不支援 timeout 參數
                     devices = await BleakScanner.discover()
+                except Exception as e:
+                    # 處理其他掃描錯誤
+                    if "no running event loop" in str(e) or "no current event loop" in str(e):
+                        self.error_occurred.emit("掃描需要事件循環，請稍後再試")
+                        return None
+                    devices = []
 
                 for device in devices or []:
                     try:
                         name = getattr(device, 'name', None)
                         if name and name.startswith(target_name_prefix):
-                            self.device_found.emit(device.address)
-                            return device.address
+                            # 避免重複添加相同設備
+                            if device.address not in [d['address'] for d in found_devices]:
+                                device_info = {
+                                    'name': name,
+                                    'address': device.address,
+                                    'rssi': getattr(device, 'rssi', 0)
+                                }
+                                found_devices.append(device_info)
+                                self.device_found.emit(device.address)
                     except Exception:
                         # 忽略單一設備屬性解析錯誤
                         continue
 
-                await asyncio.sleep(1.5)
+                # 只在第一次掃描後等待，減少總時間
+                if attempt < max_scans - 1:
+                    await asyncio.sleep(0.5)
 
-            # 後備方案：使用掃描器持續監聽回呼（對 macOS 較穩定）
+            # 後備掃描方案：使用回調方式收集設備
             try:
-                found_address = None
                 def detection_callback(d):
-                    nonlocal found_address
                     try:
                         if d and getattr(d, 'name', None) and d.name.startswith(target_name_prefix):
-                            found_address = d.address
+                            # 避免重複添加
+                            if d.address not in [device['address'] for device in found_devices]:
+                                device_info = {
+                                    'name': d.name,
+                                    'address': d.address,
+                                    'rssi': getattr(d, 'rssi', 0)
+                                }
+                                found_devices.append(device_info)
+                                self.device_found.emit(d.address)
                     except Exception:
                         pass
 
                 scanner = BleakScanner(detection_callback)
                 await scanner.start()
-                # 監聽 6 秒
-                for _ in range(6):
-                    if found_address:
-                        break
+                # 監聽 3 秒
+                for _ in range(3):
                     await asyncio.sleep(1.0)
                 await scanner.stop()
-                if found_address:
-                    self.device_found.emit(found_address)
-                    return found_address
             except Exception:
-                # 後備掃描也失敗則忽略，交由下方錯誤輸出
+                # 後備掃描也失敗則忽略
                 pass
 
-            self.error_occurred.emit("未找到發球機設備，請確認設備已開機並靠近電腦")
-            return None
+            if found_devices:
+                # 返回第一個設備地址（向後兼容）
+                return found_devices[0]['address']
+            else:
+                self.error_occurred.emit("未找到發球機設備，請確認設備已開機並靠近電腦")
+                return None
+                
         except Exception as e:
             self.error_occurred.emit(f"掃描設備失敗: {e}")
             return None
@@ -123,27 +148,25 @@ class BluetoothThread(QThread):
         except Exception as e:
             self.is_connected = False
             self.connection_status.emit(False, f"連接錯誤: {e}")
+            # 記錄詳細錯誤信息
+            import traceback
+            print(f"藍牙連接詳細錯誤: {e}")
+            traceback.print_exc()
     
     async def send_shot(self, area_section):
         """發送發球指令"""
         try:
-            area_data = read_data_from_json(AREA_FILE_PATH)
-            if not area_data:
-                self.error_occurred.emit("無法載入發球區域數據")
-                return False
-            
             # 根據發球機位置選擇參數來源
             position_key = f"{self.machine_position}_machine"
-            if position_key in area_data and area_section in area_data[position_key]:
-                params_str = area_data[position_key][area_section]
-            elif area_section in area_data.get("section", {}):
+            params = get_area_params(area_section, position_key, AREA_FILE_PATH)
+            
+            if not params:
                 # 回退到通用參數
-                params_str = area_data["section"][area_section]
-            else:
+                params = get_area_params(area_section, "section", AREA_FILE_PATH)
+            
+            if not params:
                 self.error_occurred.emit(f"找不到區域 {area_section} 的參數")
                 return False
-            
-            params = parse_area_params(params_str)
             
             if params and self.client and self.is_connected:
                 command = create_shot_command(

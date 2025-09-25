@@ -29,7 +29,14 @@ class IOBridge:
         return reply_text
 
     def handle_text(self, text: str, source: str = "text"):
-        asyncio.create_task(self.handle_text_async(text, source))
+        # 使用安全的異步任務創建方法
+        try:
+            import asyncio
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.handle_text_async(text, source))
+        except RuntimeError:
+            # 如果沒有運行的事件循環，記錄錯誤但不崩潰
+            print(f"❌ 無法創建異步任務處理文本: {text}")
 
     def _emit_reply(self, cmd, reply_text: str):
         if not reply_text:

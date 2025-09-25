@@ -161,7 +161,12 @@ def execute_text_command(self):
             router = CommandRouter(self)
             # 路由並執行
             import asyncio
-            asyncio.create_task(_route_and_reply(self, router, cmd))
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(_route_and_reply(self, router, cmd))
+            except RuntimeError:
+                # 如果沒有運行的事件循環，記錄錯誤但不崩潰
+                print(f"❌ 無法創建異步任務處理命令: {cmd}")
             return
     except Exception:
         pass

@@ -553,10 +553,14 @@ def start_simulation_training(self):
         parent: 父窗口實例
     """
     try:
-        # 檢查連接狀態（統一 DeviceService）
+        # 檢查連接狀態（統一 DeviceService，支持模擬模式）
         if not hasattr(self, 'device_service'):
             self.device_service = DeviceService(self, simulate=False)
-        if not self.device_service.is_connected():
+        
+        # 檢查是否為模擬模式
+        is_simulate_mode = getattr(self.device_service, 'simulate', False)
+        
+        if not is_simulate_mode and not self.device_service.is_connected():
             self.log_message("❌ 請先連接發球機")
             return
         
@@ -581,7 +585,8 @@ def start_simulation_training(self):
                 self.log_message("❌ 雙發球機管理器未初始化")
                 return
             
-            if not self.dual_bluetooth_manager.is_dual_connected():
+            # 在模擬模式下，允許雙發球機模擬
+            if not is_simulate_mode and not self.dual_bluetooth_manager.is_dual_connected():
                 self.log_message("❌ 雙發球機未完全連接，請先在連接設定中連接雙發球機")
                 return
         

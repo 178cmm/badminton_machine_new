@@ -79,9 +79,28 @@ def _create_single_machine_tab(self):
             background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                 stop:0 #3d8b40, stop:1 #357a38);
         }
+        QPushButton:disabled {
+            background: #cccccc;
+            color: #666666;
+        }
     """)
     self.scan_button.clicked.connect(self.on_scan_button_clicked)
     single_layout.addWidget(self.scan_button)
+    
+    # 掃描狀態指示器
+    self.scan_status_label = QLabel("💤 等待掃描...")
+    self.scan_status_label.setStyleSheet("""
+        QLabel {
+            color: #ffcc00;
+            font-weight: bold;
+            font-size: 11px;
+            padding: 4px;
+            background-color: rgba(255, 204, 0, 0.1);
+            border: 1px solid #ffcc00;
+            border-radius: 3px;
+        }
+    """)
+    single_layout.addWidget(self.scan_status_label)
     
     # 設備列表
     single_layout.addWidget(QLabel("📱 選擇設備:"))
@@ -444,19 +463,117 @@ def on_position_changed(self):
 
 def on_scan_button_clicked(self):
     """掃描按鈕點擊事件（UI 層面的處理）"""
-    # 使用統一 Service
-    self.create_async_task(self.device_service.scan())
+    try:
+        # 更新掃描狀態指示器
+        if hasattr(self, 'scan_status_label'):
+            self.scan_status_label.setText("🔍 正在掃描...")
+            self.scan_status_label.setStyleSheet("""
+                QLabel {
+                    color: #2196F3;
+                    font-weight: bold;
+                    font-size: 11px;
+                    padding: 4px;
+                    background-color: rgba(33, 150, 243, 0.1);
+                    border: 1px solid #2196F3;
+                    border-radius: 3px;
+                }
+            """)
+        
+        # 檢查事件循環可用性並嘗試創建異步任務
+        import asyncio
+        task = None
+        
+        try:
+            # 嘗試創建異步任務
+            task = self.create_async_task(self.device_service.scan())
+            if task is None:
+                # 如果創建任務失敗，嘗試直接運行
+                self.log_message("⚠️ 異步任務創建失敗，嘗試直接運行...")
+                try:
+                    # 嘗試獲取事件循環並運行
+                    loop = asyncio.get_event_loop()
+                    if loop and not loop.is_closed():
+                        # 在現有循環中運行
+                        loop.create_task(self.device_service.scan())
+                    else:
+                        # 創建新的事件循環
+                        asyncio.run(self.device_service.scan())
+                except Exception as e:
+                    self.log_message(f"⚠️ 直接運行失敗: {e}，使用同步掃描...")
+                    self._perform_sync_scan()
+                    return
+        except Exception as e:
+            self.log_message(f"⚠️ 異步掃描失敗: {e}，使用同步掃描...")
+            self._perform_sync_scan()
+            return
+    except Exception as e:
+        self.log_message(f"❌ 掃描按鈕點擊處理失敗: {e}")
+        import traceback
+        traceback.print_exc()
+
+def _perform_sync_scan(self):
+    """執行同步掃描"""
+    try:
+        # 使用同步掃描方法
+        result = self.device_service.scan_sync()
+        if result.get("ok"):
+            # 更新掃描狀態
+            if hasattr(self, 'scan_status_label'):
+                self.scan_status_label.setText("✅ 掃描完成")
+                self.scan_status_label.setStyleSheet("""
+                    QLabel {
+                        color: #4CAF50;
+                        font-weight: bold;
+                        font-size: 11px;
+                        padding: 4px;
+                        background-color: rgba(76, 175, 80, 0.1);
+                        border: 1px solid #4CAF50;
+                        border-radius: 3px;
+                    }
+                """)
+        else:
+            self.log_message(f"❌ 同步掃描失敗: {result.get('error', '未知錯誤')}")
+            # 恢復掃描狀態
+            if hasattr(self, 'scan_status_label'):
+                self.scan_status_label.setText("❌ 掃描失敗")
+                self.scan_status_label.setStyleSheet("""
+                    QLabel {
+                        color: #f44336;
+                        font-weight: bold;
+                        font-size: 11px;
+                        padding: 4px;
+                        background-color: rgba(244, 67, 54, 0.1);
+                        border: 1px solid #f44336;
+                        border-radius: 3px;
+                    }
+                """)
+    except Exception as e:
+        self.log_message(f"❌ 同步掃描失敗: {e}")
 
 def on_connect_button_clicked(self):
     """連接按鈕點擊事件（UI 層面的處理）"""
-    address = self.device_combo.currentData()
-    # Service 內部會處理地址為空的情況
-    self.create_async_task(self.device_service.connect(address))
+    try:
+        address = self.device_combo.currentData()
+        # Service 內部會處理地址為空的情況
+        task = self.create_async_task(self.device_service.connect(address))
+        if task is None:
+            self.log_message("❌ 無法創建連接任務，請檢查系統狀態")
+    except Exception as e:
+        self.log_message(f"❌ 連接按鈕點擊處理失敗: {e}")
+        import traceback
+        traceback.print_exc()
 
 def on_disconnect_button_clicked(self):
     """斷開按鈕點擊事件（UI 層面的處理）"""
-    # 使用統一 Service
-    self.create_async_task(self.device_service.disconnect())
+    try:
+        # 使用統一 Service
+        task = self.create_async_task(self.device_service.disconnect())
+        if task is None:
+            self.log_message("❌ 無法創建斷開任務，請檢查系統狀態")
+    except Exception as e:
+        self.log_message(f"❌ 斷開按鈕點擊處理失敗: {e}")
+        import traceback
+        traceback.print_exc()
 
 # 雙發球機事件處理函數
 def on_dual_scan_button_clicked(self):
@@ -501,63 +618,47 @@ def on_disconnect_dual_button_clicked(self):
     self.create_async_task(self.dual_bluetooth_manager.disconnect_dual_machines())
 
 def update_dual_connection_status(self, machine_name: str, connected: bool, message: str):
-    """更新雙發球機連接狀態顯示"""
+    """更新雙發球機連接狀態顯示（優化版本）"""
     try:
+        # 預定義樣式，避免重複創建
+        connected_style = """
+            QLabel {
+                color: #4CAF50;
+                font-weight: bold;
+                font-size: 12px;
+                padding: 8px;
+                background-color: rgba(76, 175, 80, 0.1);
+                border: 1px solid #4CAF50;
+                border-radius: 5px;
+            }
+        """
+        disconnected_style = """
+            QLabel {
+                color: #f44336;
+                font-weight: bold;
+                font-size: 12px;
+                padding: 8px;
+                background-color: rgba(244, 67, 54, 0.1);
+                border: 1px solid #f44336;
+                border-radius: 5px;
+            }
+        """
+        
         if machine_name == "左發球機":
             if connected:
                 self.left_machine_status.setText("🔵 左發球機: ✅ 已連接")
-                self.left_machine_status.setStyleSheet("""
-                    QLabel {
-                        color: #4CAF50;
-                        font-weight: bold;
-                        font-size: 12px;
-                        padding: 8px;
-                        background-color: rgba(76, 175, 80, 0.1);
-                        border: 1px solid #4CAF50;
-                        border-radius: 5px;
-                    }
-                """)
+                self.left_machine_status.setStyleSheet(connected_style)
             else:
                 self.left_machine_status.setText("🔵 左發球機: ❌ 未連接")
-                self.left_machine_status.setStyleSheet("""
-                    QLabel {
-                        color: #f44336;
-                        font-weight: bold;
-                        font-size: 12px;
-                        padding: 8px;
-                        background-color: rgba(244, 67, 54, 0.1);
-                        border: 1px solid #f44336;
-                        border-radius: 5px;
-                    }
-                """)
+                self.left_machine_status.setStyleSheet(disconnected_style)
         
         elif machine_name == "右發球機":
             if connected:
                 self.right_machine_status.setText("🔴 右發球機: ✅ 已連接")
-                self.right_machine_status.setStyleSheet("""
-                    QLabel {
-                        color: #4CAF50;
-                        font-weight: bold;
-                        font-size: 12px;
-                        padding: 8px;
-                        background-color: rgba(76, 175, 80, 0.1);
-                        border: 1px solid #4CAF50;
-                        border-radius: 5px;
-                    }
-                """)
+                self.right_machine_status.setStyleSheet(connected_style)
             else:
                 self.right_machine_status.setText("🔴 右發球機: ❌ 未連接")
-                self.right_machine_status.setStyleSheet("""
-                    QLabel {
-                        color: #f44336;
-                        font-weight: bold;
-                        font-size: 12px;
-                        padding: 8px;
-                        background-color: rgba(244, 67, 54, 0.1);
-                        border: 1px solid #f44336;
-                        border-radius: 5px;
-                    }
-                """)
+                self.right_machine_status.setStyleSheet(disconnected_style)
         
         # 更新雙發球機模式狀態
         if hasattr(self, 'dual_bluetooth_manager') and self.dual_bluetooth_manager.is_dual_connected():
@@ -650,21 +751,57 @@ def update_dual_connection_status(self, machine_name: str, connected: bool, mess
         self.log_message(f"❌ 更新雙發球機連接狀態失敗: {e}")
 
 def update_connection_status(self, connected: bool, message: str):
-    """更新單發球機連接狀態顯示"""
+    """更新單發球機連接狀態顯示（優化版本）"""
     try:
+        # 預定義樣式，避免重複創建
+        connected_style = """
+            QLabel {
+                color: #4CAF50;
+                font-weight: bold;
+                font-size: 12px;
+                padding: 8px;
+                background-color: rgba(76, 175, 80, 0.1);
+                border: 1px solid #4CAF50;
+                border-radius: 5px;
+            }
+        """
+        disconnected_style = """
+            QLabel {
+                color: #f44336;
+                font-weight: bold;
+                font-size: 12px;
+                padding: 8px;
+                background-color: rgba(244, 67, 54, 0.1);
+                border: 1px solid #f44336;
+                border-radius: 5px;
+            }
+        """
+        status_connected_style = """
+            padding: 10px 16px;
+            background-color: rgba(120, 180, 120, 0.6);
+            color: #ffffff;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 13px;
+            border: 1px solid #78b478;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            letter-spacing: 1px;
+        """
+        status_disconnected_style = """
+            padding: 10px 16px;
+            background-color: rgba(180, 80, 80, 0.6);
+            color: #ffffff;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 13px;
+            border: 1px solid #b45050;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            letter-spacing: 1px;
+        """
+        
         if connected:
             self.connection_status_label.setText("✅ 已連接")
-            self.connection_status_label.setStyleSheet("""
-                QLabel {
-                    color: #4CAF50;
-                    font-weight: bold;
-                    font-size: 12px;
-                    padding: 8px;
-                    background-color: rgba(76, 175, 80, 0.1);
-                    border: 1px solid #4CAF50;
-                    border-radius: 5px;
-                }
-            """)
+            self.connection_status_label.setStyleSheet(connected_style)
             # 啟用控制按鈕
             if hasattr(self, 'disconnect_button'):
                 self.disconnect_button.setEnabled(True)
@@ -674,30 +811,10 @@ def update_connection_status(self, connected: bool, message: str):
             # 更新總狀態欄為已連接
             if hasattr(self, 'status_label'):
                 self.status_label.setText("🟢 SYSTEM STATUS: CONNECTED & READY")
-                self.status_label.setStyleSheet("""
-                    padding: 10px 16px;
-                    background-color: rgba(120, 180, 120, 0.6);
-                    color: #ffffff;
-                    border-radius: 8px;
-                    font-weight: bold;
-                    font-size: 13px;
-                    border: 1px solid #78b478;
-                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-                    letter-spacing: 1px;
-                """)
+                self.status_label.setStyleSheet(status_connected_style)
         else:
             self.connection_status_label.setText("❌ 未連接")
-            self.connection_status_label.setStyleSheet("""
-                QLabel {
-                    color: #f44336;
-                    font-weight: bold;
-                    font-size: 12px;
-                    padding: 8px;
-                    background-color: rgba(244, 67, 54, 0.1);
-                    border: 1px solid #f44336;
-                    border-radius: 5px;
-                }
-            """)
+            self.connection_status_label.setStyleSheet(disconnected_style)
             # 禁用控制按鈕
             if hasattr(self, 'disconnect_button'):
                 self.disconnect_button.setEnabled(False)
@@ -707,17 +824,7 @@ def update_connection_status(self, connected: bool, message: str):
             # 更新總狀態欄為未連接
             if hasattr(self, 'status_label'):
                 self.status_label.setText("🔴 SYSTEM STATUS: DISCONNECTED")
-                self.status_label.setStyleSheet("""
-                    padding: 10px 16px;
-                    background-color: rgba(180, 80, 80, 0.6);
-                    color: #ffffff;
-                    border-radius: 8px;
-                    font-weight: bold;
-                    font-size: 13px;
-                    border: 1px solid #b45050;
-                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-                    letter-spacing: 1px;
-                """)
+                self.status_label.setStyleSheet(status_disconnected_style)
                 
     except Exception as e:
         self.log_message(f"❌ 更新連接狀態失敗: {e}")
