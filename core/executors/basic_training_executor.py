@@ -94,27 +94,69 @@ class BasicTrainingExecutor:
         # 記錄開始訊息
         self.gui.log_message(f"開始練習 {shot_name}，共 {count} 顆球，間隔 {interval} 秒")
         
-        # 執行練習
-        for i in range(count):
-            if self.stop_flag:
-                break
-            
-            try:
-                # 發送發球命令
-                if hasattr(self.gui, 'bluetooth_thread') and self.gui.bluetooth_thread:
-                    self.gui.create_async_task(self.gui.bluetooth_thread.send_shot(section))
-                else:
-                    self.gui.log_message("藍牙連接不可用")
-                    return False
-                
-                self.gui.log_message(f"已發送 {shot_name} 第 {i+1} 顆")
-                time.sleep(interval)
-            except Exception as e:
-                self.gui.log_message(f"發球失敗: {e}")
-                return False
+        # 設定進度條
+        self._setup_progress_bar(count)
         
-        self.gui.log_message(f"完成 {shot_name} 的練習，共發送 {count} 顆球")
+        # 開始執行練習
+        self.stop_flag = False
+        self.training_task = self.gui.create_async_task(
+            self._execute_specific_shot_async(section, shot_name, count, interval)
+        )
+        
+        # 同步設置主GUI的訓練任務，保持與舊版本一致
+        self.gui.training_task = self.training_task
+        
         return True
+    
+    async def _execute_specific_shot_async(self, section: str, shot_name: str, count: int, interval: float):
+        """非同步執行特定球種練習"""
+        try:
+            sent_count = 0
+            
+            for i in range(count):
+                if self.stop_flag:
+                    self.gui.log_message("練習已被停止")
+                    break
+                
+                if not self.gui.bluetooth_thread or not self.gui.bluetooth_thread.is_connected:
+                    self.gui.log_message("請先連接發球機")
+                    break
+                
+                try:
+                    await self.gui.bluetooth_thread.send_shot(section)
+                except Exception as e:
+                    self.gui.log_message(f"發球失敗: {e}")
+                    break
+                
+                sent_count += 1
+                self.gui.log_message(f"已發送 {shot_name} 第 {sent_count} 顆")
+                
+                # 更新進度條
+                if hasattr(self.gui, 'basic_training_progress_bar'):
+                    self.gui.basic_training_progress_bar.setValue(sent_count)
+                
+                # 更新進度文字
+                if hasattr(self.gui, 'basic_training_progress_label'):
+                    self.gui.basic_training_progress_label.setText(f"已發送 {sent_count}/{count} 顆球")
+                
+                # 等待間隔時間（除了最後一顆球）
+                if i < count - 1:
+                    try:
+                        await asyncio.sleep(interval)
+                    except RuntimeError as e:
+                        if "no running event loop" in str(e):
+                            time.sleep(interval)
+                        else:
+                            raise
+            
+            self.gui.log_message(f"完成 {shot_name} 的練習，共發送 {sent_count} 顆球")
+            
+        except asyncio.CancelledError:
+            self.gui.log_message("練習已被停止")
+        except Exception as e:
+            self.gui.log_message(f"練習執行失敗: {e}")
+        finally:
+            self._cleanup_training()
     
     def practice_level_programs(self, level: int, programs_data: Dict[str, Any]) -> bool:
         """
