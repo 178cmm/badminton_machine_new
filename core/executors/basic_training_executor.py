@@ -237,7 +237,13 @@ class BasicTrainingExecutor:
                 if hasattr(self.gui, 'basic_training_progress_label'):
                     self.gui.basic_training_progress_label.setText(f"已發送 {sent_count}/{num_shots} 顆球")
                 
-                await asyncio.sleep(interval)
+                try:
+                    await asyncio.sleep(interval)
+                except RuntimeError as e:
+                    if "no running event loop" in str(e):
+                        time.sleep(interval)
+                    else:
+                        raise
             
             self.gui.log_message(f"完成 {display_name} 的訓練，共發送 {sent_count} 顆球")
             

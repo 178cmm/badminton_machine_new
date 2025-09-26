@@ -54,13 +54,14 @@ class SimulationExecutor:
         except Exception as e:
             self.gui.log_message(f"❌ 載入發球區域數據失敗: {e}")
     
-    def start_simulation(self, level: int, use_dual_machine: bool = False) -> bool:
+    def start_simulation(self, level: int, use_dual_machine: bool = False, total_balls: int = 30) -> bool:
         """
         開始模擬對打
         
         Args:
             level: 球員等級 (1-12)
             use_dual_machine: 是否使用雙發球機
+            total_balls: 總發球數 (預設30顆)
             
         Returns:
             是否成功開始模擬
@@ -77,13 +78,13 @@ class SimulationExecutor:
             # 獲取訓練參數
             difficulty, interval, serve_type = self._get_training_params(level)
             
-            self.gui.log_message(f"🎯 開始模擬對打 - 等級: {level}, 難度: {difficulty}, 間隔: {interval}s")
+            self.gui.log_message(f"🎯 開始模擬對打 - 等級: {level}, 難度: {difficulty}, 間隔: {interval}s, 總球數: {total_balls}")
             self.gui.log_message(f"📊 球路類型: {self._get_serve_type_label(serve_type)}")
             
             if use_dual_machine:
                 # 使用雙發球機模式
                 self.gui.log_message("🔄 使用雙發球機模式")
-                return self._start_dual_machine_simulation(level, difficulty, interval, serve_type)
+                return self._start_dual_machine_simulation(level, difficulty, interval, serve_type, total_balls)
             else:
                 # 使用單發球機模式
                 self.gui.log_message("🔄 使用單發球機模式")
@@ -94,7 +95,7 @@ class SimulationExecutor:
                 
                 # 開始訓練任務
                 self.training_task = self.gui.create_async_task(
-                    self._run_simulation(difficulty, interval, serve_type)
+                    self._run_simulation(difficulty, interval, serve_type, total_balls)
                 )
                 
                 if self.training_task is None:
@@ -110,7 +111,7 @@ class SimulationExecutor:
             self.gui.log_message(f"❌ 開始模擬對打失敗: {e}")
             return False
     
-    def _start_dual_machine_simulation(self, level: int, difficulty: int, interval: float, serve_type: int) -> bool:
+    def _start_dual_machine_simulation(self, level: int, difficulty: int, interval: float, serve_type: int, total_balls: int) -> bool:
         """
         開始雙發球機模擬對打
         
@@ -119,6 +120,7 @@ class SimulationExecutor:
             difficulty: 難度等級
             interval: 發球間隔
             serve_type: 球路類型
+            total_balls: 總發球數
             
         Returns:
             是否成功開始
@@ -136,7 +138,7 @@ class SimulationExecutor:
             
             # 開始雙發球機訓練任務
             self.training_task = self.gui.create_async_task(
-                self._run_dual_machine_simulation(difficulty, interval, serve_type)
+                self._run_dual_machine_simulation(difficulty, interval, serve_type, total_balls)
             )
             
             if self.training_task is None:
@@ -167,6 +169,29 @@ class SimulationExecutor:
             if self.training_task and not self.training_task.done():
                 self.training_task.cancel()
                 self.gui.log_message("🛑 單發球機模擬任務已取消")
+                
+                # 強制等待任務完成或超時
+                import asyncio
+                try:
+                    # 嘗試等待任務完成，最多等待2秒
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        # 如果事件循環正在運行，創建一個新任務來等待
+                        async def wait_for_cancellation():
+                            try:
+                                await asyncio.wait_for(self.training_task, timeout=2.0)
+                            except asyncio.CancelledError:
+                                pass
+                            except asyncio.TimeoutError:
+                                pass
+                        
+                        # 在事件循環中運行等待任務
+                        asyncio.create_task(wait_for_cancellation())
+                    else:
+                        # 如果沒有運行的事件循環，直接等待
+                        loop.run_until_complete(asyncio.wait_for(self.training_task, timeout=2.0))
+                except Exception as e:
+                    self.gui.log_message(f"⚠️ 等待任務取消時發生錯誤: {e}")
             
             # 停止雙發球機模擬
             if hasattr(self.gui, 'dual_machine_executor'):
@@ -180,11 +205,16 @@ class SimulationExecutor:
             # 立即更新UI狀態
             self._update_simulation_status("已停止", "發球次數: 0 | 運行時間: 00:00")
             
+            # 清理任務引用
+            self.training_task = None
+            
             self.gui.log_message("✅ 模擬對打已停止")
             return True
             
         except Exception as e:
             self.gui.log_message(f"❌ 停止模擬對打失敗: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def _check_bluetooth_connection(self) -> bool:
@@ -306,28 +336,40 @@ class SimulationExecutor:
         Returns:
             (current_sec, next_sec)
         """
-        # 根據是否已有前一個發球區域來選擇當前區域
-        if self.previous_sec is None:
-            # 如果沒有前一個發球區域，隨機分配一個區域
-            sec_num = random.randint(1, 25)
-            sec_type = random.randint(1, 2)
-            current_sec = f'sec{sec_num}_{sec_type}'
-        else:
-            # 如果有前一個發球區域，使用它作為當前區域
-            current_sec = self.previous_sec
-        
-        # 根據當前區域和難度，使用 selector 取得可攻擊區域
-        first_targets = self.selector.get_available_targets(current_sec, difficulty)
-        
-        # 從第一步的可攻擊區域中隨機選出下一個發球位置
-        next_sec = random.choice(first_targets)
-        second_targets = self.selector.get_available_targets(next_sec, difficulty)
-        next_start = random.choice(second_targets)
-        
-        # 記錄本次的發球區域，為下次使用
-        self.previous_sec = next_start
-        
-        return current_sec, next_sec
+        try:
+            # 根據是否已有前一個發球區域來選擇當前區域
+            if self.previous_sec is None:
+                # 如果沒有前一個發球區域，隨機分配一個區域
+                sec_num = random.randint(1, 25)
+                sec_type = random.randint(1, 2)
+                current_sec = f'sec{sec_num}_{sec_type}'
+            else:
+                # 如果有前一個發球區域，使用它作為當前區域
+                current_sec = self.previous_sec
+            
+            # 根據當前區域和難度，使用 selector 取得可攻擊區域
+            first_targets = self.selector.get_available_targets(current_sec, difficulty)
+            
+            if not first_targets:
+                raise ValueError(f"無法為區域 {current_sec} 和難度 {difficulty} 生成目標區域")
+            
+            # 從第一步的可攻擊區域中隨機選出下一個發球位置
+            next_sec = random.choice(first_targets)
+            second_targets = self.selector.get_available_targets(next_sec, difficulty)
+            
+            if not second_targets:
+                raise ValueError(f"無法為區域 {next_sec} 和難度 {difficulty} 生成目標區域")
+            
+            next_start = random.choice(second_targets)
+            
+            # 記錄本次的發球區域，為下次使用
+            self.previous_sec = next_start
+            
+            return current_sec, next_sec
+            
+        except Exception as e:
+            self.gui.log_message(f"❌ _generate_pitch_areas 內部錯誤: {e}")
+            raise
     
     def _get_params_from_zone(self, zone: str, serve_type: int) -> Optional[bytearray]:
         """
@@ -365,7 +407,7 @@ class SimulationExecutor:
             self.gui.log_message(f"❌ 處理區域 {zone} 參數失敗: {e}")
             return None
     
-    async def _run_simulation(self, difficulty: int, interval: float, serve_type: int):
+    async def _run_simulation(self, difficulty: int, interval: float, serve_type: int, total_balls: int = 30):
         """
         執行模擬對打
         
@@ -373,6 +415,7 @@ class SimulationExecutor:
             difficulty: 難度等級
             interval: 發球間隔
             serve_type: 球路類型
+            total_balls: 總發球數
         """
         try:
             self.gui.log_message("🚀 模擬對打開始")
@@ -382,19 +425,32 @@ class SimulationExecutor:
             start_time = time.time()
             
             # 更新狀態為運行中
-            self._update_simulation_status("運行中", f"發球次數: {shot_count} | 運行時間: 00:00")
+            self._update_simulation_status("運行中", f"發球次數: {shot_count}/{total_balls} | 運行時間: 00:00")
             
-            while not self.stop_flag:
+            while not self.stop_flag and shot_count < total_balls:
                 # 檢查停止標誌
                 if self.stop_flag:
                     break
                 
                 # 生成發球區域
-                current_sec, next_sec = self._generate_pitch_areas(difficulty)
+                try:
+                    current_sec, next_sec = self._generate_pitch_areas(difficulty)
+                    self.gui.log_message(f"🎯 生成發球區域: {current_sec}")
+                except Exception as e:
+                    self.gui.log_message(f"❌ 生成發球區域失敗: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    break
                 
                 # 發送發球指令
-                await self._send_shot_command(current_sec)
-                self.gui.log_message(f"🎯 發球區域: {current_sec}")
+                try:
+                    await self._send_shot_command(current_sec)
+                    self.gui.log_message(f"🎯 發球區域: {current_sec}")
+                except Exception as e:
+                    self.gui.log_message(f"❌ 發送發球指令失敗: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    break
                 
                 # 更新統計數據
                 shot_count += 1
@@ -404,7 +460,10 @@ class SimulationExecutor:
                 time_str = f"{minutes:02d}:{seconds:02d}"
                 
                 # 更新狀態顯示
-                self._update_simulation_status("運行中", f"發球次數: {shot_count} | 運行時間: {time_str}")
+                self._update_simulation_status("運行中", f"發球次數: {shot_count}/{total_balls} | 運行時間: {time_str}")
+                
+                # 更新進度條
+                self._update_simulation_progress(shot_count, total_balls, "運行中")
                 
                 # 等待發球完成
                 await self._wait_for_shot_completion()
@@ -417,7 +476,17 @@ class SimulationExecutor:
                 wait_time = interval
                 while wait_time > 0 and not self.stop_flag:
                     sleep_time = min(0.1, wait_time)  # 每0.1秒檢查一次停止標誌
-                    await asyncio.sleep(sleep_time)
+                    try:
+                        await asyncio.sleep(sleep_time)
+                    except asyncio.CancelledError:
+                        # 任務被取消，立即退出
+                        self.gui.log_message("🛑 模擬對打被取消")
+                        return
+                    except RuntimeError as e:
+                        if "no running event loop" in str(e):
+                            time.sleep(sleep_time)
+                        else:
+                            raise
                     wait_time -= sleep_time
                 
                 # 準備下一球
@@ -429,8 +498,15 @@ class SimulationExecutor:
             minutes = elapsed_time // 60
             seconds = elapsed_time % 60
             time_str = f"{minutes:02d}:{seconds:02d}"
-            self._update_simulation_status("已結束", f"發球次數: {shot_count} | 運行時間: {time_str}")
-            self.gui.log_message("✅ 模擬對打結束")
+            
+            if shot_count >= total_balls:
+                self._update_simulation_status("已完成", f"發球次數: {shot_count}/{total_balls} | 運行時間: {time_str}")
+                self._update_simulation_progress(shot_count, total_balls, "已完成")
+                self.gui.log_message(f"✅ 模擬對打完成 - 已發送 {shot_count} 顆球")
+            else:
+                self._update_simulation_status("已結束", f"發球次數: {shot_count}/{total_balls} | 運行時間: {time_str}")
+                self._update_simulation_progress(shot_count, total_balls, "已結束")
+                self.gui.log_message("✅ 模擬對打結束")
             
         except asyncio.CancelledError:
             self._update_simulation_status("已停止", f"發球次數: {shot_count} | 運行時間: {time_str}")
@@ -452,15 +528,26 @@ class SimulationExecutor:
         try:
             # 1) 實機藍牙線程
             if self.bluetooth_thread and getattr(self.bluetooth_thread, 'is_connected', False):
-                result = await self.bluetooth_thread.send_shot(area_section)
-                self.gui.log_message("✅ 發球指令已發送" if result else "❌ 發球指令發送失敗")
-                return
+                try:
+                    result = await self.bluetooth_thread.send_shot(area_section)
+                    if result:
+                        self.gui.log_message("✅ 發球指令已發送")
+                    else:
+                        self.gui.log_message("❌ 發球指令發送失敗")
+                    return
+                except Exception as e:
+                    self.gui.log_message(f"❌ 藍牙發球失敗: {e}")
+                    return
             
             # 2) 模擬裝置服務
             if hasattr(self.gui, 'device_service') and getattr(self.gui.device_service, 'simulate', False):
-                result = await self.gui.device_service.send_shot(area_section)
-                self.gui.log_message("[simulate] ✅ 發球指令已發送" if result else "[simulate] ❌ 發球指令發送失敗")
-                return
+                try:
+                    result = await self.gui.device_service.send_shot(area_section)
+                    self.gui.log_message("[simulate] ✅ 發球指令已發送" if result else "[simulate] ❌ 發球指令發送失敗")
+                    return
+                except Exception as e:
+                    self.gui.log_message(f"[simulate] ❌ 發球失敗: {e}")
+                    return
             
             # 3) 環境變數模擬模式
             import os
@@ -471,6 +558,8 @@ class SimulationExecutor:
             self.gui.log_message("❌ 發球機未連接")
         except Exception as e:
             self.gui.log_message(f"❌ 發送發球指令失敗: {e}")
+            import traceback
+            traceback.print_exc()
     
     async def _wait_for_shot_completion(self):
         """等待發球完成"""
@@ -484,15 +573,42 @@ class SimulationExecutor:
             
             if is_simulate_mode:
                 # 模擬模式下等待較短時間
-                await asyncio.sleep(0.5)
+                try:
+                    await asyncio.sleep(0.5)
+                except asyncio.CancelledError:
+                    # 任務被取消，立即退出
+                    return
+                except RuntimeError as e:
+                    if "no running event loop" in str(e):
+                        time.sleep(0.5)
+                    else:
+                        raise
                 return
             
             # 等待發球完成通知
             if self.bluetooth_thread and hasattr(self.bluetooth_thread, 'wait_for_shot_completion'):
-                await self.bluetooth_thread.wait_for_shot_completion()
+                try:
+                    await self.bluetooth_thread.wait_for_shot_completion()
+                except asyncio.CancelledError:
+                    # 任務被取消，立即退出
+                    return
+                except RuntimeError as e:
+                    if "no running event loop" in str(e):
+                        time.sleep(2)
+                    else:
+                        raise
             else:
                 # 如果沒有等待機制，等待固定時間
-                await asyncio.sleep(2)
+                try:
+                    await asyncio.sleep(2)
+                except asyncio.CancelledError:
+                    # 任務被取消，立即退出
+                    return
+                except RuntimeError as e:
+                    if "no running event loop" in str(e):
+                        time.sleep(2)
+                    else:
+                        raise
         except Exception as e:
             self.gui.log_message(f"❌ 等待發球完成失敗: {e}")
     
@@ -526,6 +642,18 @@ class SimulationExecutor:
                                 border: 1px solid #4CAF50;
                             }
                         """)
+                    elif "已完成" in status:
+                        self.gui.simulation_status_label.setStyleSheet("""
+                            QLabel {
+                                font-size: 14px;
+                                color: #2196F3;
+                                font-weight: bold;
+                                padding: 5px 10px;
+                                background-color: rgba(33, 150, 243, 0.2);
+                                border-radius: 5px;
+                                border: 1px solid #2196F3;
+                            }
+                        """)
                     elif "停止" in status or "結束" in status:
                         self.gui.simulation_status_label.setStyleSheet("""
                             QLabel {
@@ -556,7 +684,23 @@ class SimulationExecutor:
         except Exception as e:
             self.gui.log_message(f"❌ 更新狀態失敗: {e}")
     
-    async def _run_dual_machine_simulation(self, difficulty: int, interval: float, serve_type: int):
+    def _update_simulation_progress(self, current_balls: int, total_balls: int, status: str = ""):
+        """
+        更新模擬對打進度條
+        
+        Args:
+            current_balls: 當前已發球數
+            total_balls: 總球數
+            status: 狀態文字
+        """
+        try:
+            # 調用GUI的進度更新函數
+            if hasattr(self.gui, 'update_simulation_progress'):
+                self.gui.update_simulation_progress(current_balls, total_balls, status)
+        except Exception as e:
+            self.gui.log_message(f"❌ 更新進度條失敗: {e}")
+    
+    async def _run_dual_machine_simulation(self, difficulty: int, interval: float, serve_type: int, total_balls: int = 30):
         """
         執行雙發球機模擬對打
         
@@ -564,6 +708,7 @@ class SimulationExecutor:
             difficulty: 難度等級
             interval: 發球間隔
             serve_type: 球路類型
+            total_balls: 總發球數
         """
         try:
             self.gui.log_message("🚀 雙發球機模擬對打開始")
@@ -574,9 +719,9 @@ class SimulationExecutor:
             current_machine = 0  # 0=左發球機, 1=右發球機
             
             # 更新狀態為運行中
-            self._update_simulation_status("雙發球機對打中", f"發球次數: {shot_count} | 運行時間: 00:00")
+            self._update_simulation_status("雙發球機對打中", f"發球次數: {shot_count}/{total_balls} | 運行時間: 00:00")
             
-            while not self.stop_flag:
+            while not self.stop_flag and shot_count < total_balls:
                 # 生成發球區域
                 current_sec, next_sec = self._generate_pitch_areas(difficulty)
                 
@@ -604,7 +749,10 @@ class SimulationExecutor:
                     time_str = f"{minutes:02d}:{seconds:02d}"
                     
                     # 更新狀態顯示
-                    self._update_simulation_status("雙發球機對打中", f"發球次數: {shot_count} | 運行時間: {time_str}")
+                    self._update_simulation_status("雙發球機對打中", f"發球次數: {shot_count}/{total_balls} | 運行時間: {time_str}")
+                    
+                    # 更新進度條
+                    self._update_simulation_progress(shot_count, total_balls, "雙發球機對打中")
                     
                     # 等待發球完成
                     await self._wait_for_shot_completion()
@@ -637,8 +785,15 @@ class SimulationExecutor:
             minutes = elapsed_time // 60
             seconds = elapsed_time % 60
             time_str = f"{minutes:02d}:{seconds:02d}"
-            self._update_simulation_status("已結束", f"發球次數: {shot_count} | 運行時間: {time_str}")
-            self.gui.log_message("✅ 雙發球機模擬對打結束")
+            
+            if shot_count >= total_balls:
+                self._update_simulation_status("已完成", f"發球次數: {shot_count}/{total_balls} | 運行時間: {time_str}")
+                self._update_simulation_progress(shot_count, total_balls, "已完成")
+                self.gui.log_message(f"✅ 雙發球機模擬對打完成 - 已發送 {shot_count} 顆球")
+            else:
+                self._update_simulation_status("已結束", f"發球次數: {shot_count}/{total_balls} | 運行時間: {time_str}")
+                self._update_simulation_progress(shot_count, total_balls, "已結束")
+                self.gui.log_message("✅ 雙發球機模擬對打結束")
             
         except asyncio.CancelledError:
             self._update_simulation_status("已停止", f"發球次數: {shot_count} | 運行時間: {time_str}")

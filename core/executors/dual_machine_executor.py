@@ -304,7 +304,13 @@ class DualMachineExecutor:
                     break
                 
                 # 等待間隔時間
-                await asyncio.sleep(interval)
+                try:
+                    await asyncio.sleep(interval)
+                except RuntimeError as e:
+                    if "no running event loop" in str(e):
+                        time.sleep(interval)
+                    else:
+                        raise
                 
                 # 輪流切換發球機
                 self.current_machine = 1 - self.current_machine

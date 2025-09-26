@@ -6,7 +6,7 @@
 
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                              QPushButton, QComboBox, QGroupBox, QGridLayout,
-                             QSpinBox, QCheckBox, QTextEdit, QFrame)
+                             QSpinBox, QCheckBox, QTextEdit, QFrame, QProgressBar)
 from PyQt5.QtCore import Qt, pyqtSignal
 from core.services.device_service import DeviceService
 from PyQt5.QtGui import QFont, QPixmap, QPalette
@@ -84,9 +84,9 @@ def create_simulation_tab(self):
     control_group = _create_control_group(self)
     scroll_layout.addWidget(control_group)
     
-    # 狀態顯示區域
-    status_group = _create_status_group(self)
-    scroll_layout.addWidget(status_group)
+    # 進度條區域
+    progress_group = _create_progress_group(self)
+    scroll_layout.addWidget(progress_group)
     
     # 添加彈性空間
     scroll_layout.addStretch()
@@ -269,24 +269,25 @@ def _create_settings_group(self):
     self.simulation_dual_machine_check.setEnabled(True)  # 啟用雙發球機選項
     layout.addWidget(self.simulation_dual_machine_check, 0, 0, 1, 2)
     
-    # 自定義間隔時間
-    interval_label = QLabel("自定義間隔時間 (秒):")
-    interval_label.setObjectName("interval_label")
-    interval_label.setStyleSheet("""
+    # 總球數設定
+    ball_count_label = QLabel("總發球數:")
+    ball_count_label.setObjectName("ball_count_label")
+    ball_count_label.setStyleSheet("""
         QLabel {
             font-size: 14px;
             color: #ffffff;
             font-weight: bold;
         }
     """)
-    layout.addWidget(interval_label, 1, 0)
+    layout.addWidget(ball_count_label, 1, 0)
     
-    self.simulation_custom_interval = QSpinBox()
-    self.simulation_custom_interval.setObjectName("simulation_custom_interval")
-    self.simulation_custom_interval.setRange(1, 10)
-    self.simulation_custom_interval.setValue(2)
-    self.simulation_custom_interval.setSuffix(" 秒")
-    self.simulation_custom_interval.setStyleSheet("""
+    self.simulation_ball_count = QSpinBox()
+    self.simulation_ball_count.setObjectName("simulation_ball_count")
+    self.simulation_ball_count.setRange(1, 99)  # 允許1-99ㄞ顆
+    self.simulation_ball_count.setValue(30)
+    self.simulation_ball_count.setSingleStep(1)  # 以1為單位調整
+    self.simulation_ball_count.setSuffix(" 顆")
+    self.simulation_ball_count.setStyleSheet("""
         QSpinBox {
             padding: 8px;
             border: 2px solid #555555;
@@ -308,8 +309,7 @@ def _create_settings_group(self):
             background-color: #45a049;
         }
     """)
-    self.simulation_custom_interval.setEnabled(False)  # 暫時禁用
-    layout.addWidget(self.simulation_custom_interval, 1, 1)
+    layout.addWidget(self.simulation_ball_count, 1, 1)
     
     return group
 
@@ -398,10 +398,10 @@ def _create_control_group(self):
     return group
 
 
-def _create_status_group(self):
-    """創建狀態顯示區域"""
-    group = QGroupBox("📊 SYSTEM STATUS • AI 系統狀態監控")
-    group.setObjectName("status_group")
+def _create_progress_group(self):
+    """創建進度條區域"""
+    group = QGroupBox("📊 訓練進度 • 發球進度監控")
+    group.setObjectName("progress_group")
     group.setStyleSheet("""
         QGroupBox {
             font-size: 16px;
@@ -424,44 +424,36 @@ def _create_status_group(self):
     layout = QVBoxLayout(group)
     layout.setSpacing(10)
     
-    # 當前狀態
-    status_layout = QHBoxLayout()
-    
-    status_label = QLabel("當前狀態:")
-    status_label.setObjectName("status_label")
-    status_label.setStyleSheet("""
-        QLabel {
+    # 進度條
+    self.simulation_progress_bar = QProgressBar()
+    self.simulation_progress_bar.setObjectName("simulation_progress_bar")
+    self.simulation_progress_bar.setRange(0, 100)
+    self.simulation_progress_bar.setValue(0)
+    self.simulation_progress_bar.setStyleSheet("""
+        QProgressBar {
+            border: 2px solid #555555;
+            border-radius: 8px;
+            text-align: center;
             font-size: 14px;
+            font-weight: bold;
             color: #ffffff;
-            font-weight: bold;
+            background-color: #2b2b2b;
+            height: 25px;
+        }
+        QProgressBar::chunk {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #4CAF50, stop:0.5 #45a049, stop:1 #4CAF50);
+            border-radius: 6px;
         }
     """)
-    status_layout.addWidget(status_label)
+    layout.addWidget(self.simulation_progress_bar)
     
-    self.simulation_status_label = QLabel("待機中")
-    self.simulation_status_label.setObjectName("simulation_status_label")
-    self.simulation_status_label.setStyleSheet("""
-        QLabel {
-            font-size: 14px;
-            color: #ff9800;
-            font-weight: bold;
-            padding: 5px 10px;
-            background-color: rgba(255, 152, 0, 0.2);
-            border-radius: 5px;
-            border: 1px solid #ff9800;
-        }
-    """)
-    status_layout.addWidget(self.simulation_status_label)
-    status_layout.addStretch()
+    # 進度信息
+    progress_info_layout = QHBoxLayout()
     
-    layout.addLayout(status_layout)
-    
-    # 統計信息
-    stats_layout = QHBoxLayout()
-    
-    self.simulation_stats_label = QLabel("發球次數: 0 | 運行時間: 00:00")
-    self.simulation_stats_label.setObjectName("simulation_stats_label")
-    self.simulation_stats_label.setStyleSheet("""
+    self.simulation_progress_label = QLabel("準備開始訓練")
+    self.simulation_progress_label.setObjectName("simulation_progress_label")
+    self.simulation_progress_label.setStyleSheet("""
         QLabel {
             font-size: 12px;
             color: #cccccc;
@@ -470,10 +462,10 @@ def _create_status_group(self):
             border-radius: 3px;
         }
     """)
-    stats_layout.addWidget(self.simulation_stats_label)
-    stats_layout.addStretch()
+    progress_info_layout.addWidget(self.simulation_progress_label)
+    progress_info_layout.addStretch()
     
-    layout.addLayout(stats_layout)
+    layout.addLayout(progress_info_layout)
     
     return group
 
@@ -579,6 +571,11 @@ def start_simulation_training(self):
         if hasattr(self, 'simulation_dual_machine_check'):
             use_dual = self.simulation_dual_machine_check.isChecked()
         
+        # 獲取總球數設定
+        total_balls = 30  # 預設值
+        if hasattr(self, 'simulation_ball_count'):
+            total_balls = self.simulation_ball_count.value()
+        
         # 如果選擇雙發球機模式，檢查雙發球機連接狀態
         if use_dual:
             if not hasattr(self, 'dual_bluetooth_manager') or not self.dual_bluetooth_manager:
@@ -596,7 +593,7 @@ def start_simulation_training(self):
             self.simulation_executor = create_simulation_executor(self)
         
         # 開始模擬對打
-        success = self.simulation_executor.start_simulation(level, use_dual)
+        success = self.simulation_executor.start_simulation(level, use_dual, total_balls)
         
         if success:
             # 更新UI狀態
@@ -605,8 +602,9 @@ def start_simulation_training(self):
             if hasattr(self, 'simulation_stop_button'):
                 self.simulation_stop_button.setEnabled(True)
             
-            update_simulation_status(self, "運行中", "發球次數: 0 | 運行時間: 00:00")
-            self.log_message(f"✅ 模擬對打已開始 - 等級 {level}")
+            # 重置進度條
+            reset_simulation_progress(self)
+            self.log_message(f"✅ 模擬對打已開始 - 等級 {level}，總球數: {total_balls}")
         else:
             self.log_message("❌ 開始模擬對打失敗")
             
@@ -633,7 +631,8 @@ def stop_simulation_training(self):
                 if hasattr(self, 'simulation_stop_button'):
                     self.simulation_stop_button.setEnabled(False)
                 
-                update_simulation_status(self, "已停止", "發球次數: 0 | 運行時間: 00:00")
+                # 重置進度條
+                reset_simulation_progress(self)
                 self.log_message("✅ 模擬對打已停止")
             else:
                 self.log_message("❌ 停止模擬對打失敗")
@@ -641,58 +640,46 @@ def stop_simulation_training(self):
             self.log_message("❌ 沒有正在運行的模擬對打")
             
     except Exception as e:
-        self.log_message(f"❌ 停止模擬對打時發生錯誤: {e}")
+            self.log_message(f"❌ 停止模擬對打時發生錯誤: {e}")
 
 
-def update_simulation_status(self, status: str, stats: str = ""):
+def update_simulation_progress(self, current_balls: int, total_balls: int, status: str = ""):
     """
-    更新模擬對打狀態
+    更新模擬對打進度條
     
     Args:
-        parent: 父窗口實例
+        current_balls: 當前已發球數
+        total_balls: 總球數
         status: 狀態文字
-        stats: 統計信息
     """
-    if hasattr(self, 'simulation_status_label'):
-        self.simulation_status_label.setText(status)
-        
-        # 根據狀態更新顏色
-        if "運行中" in status or "對打中" in status or "雙發球機" in status:
-            self.simulation_status_label.setStyleSheet("""
-                QLabel {
-                    font-size: 14px;
-                    color: #4CAF50;
-                    font-weight: bold;
-                    padding: 5px 10px;
-                    background-color: rgba(76, 175, 80, 0.2);
-                    border-radius: 5px;
-                    border: 1px solid #4CAF50;
-                }
-            """)
-        elif "停止" in status or "結束" in status:
-            self.simulation_status_label.setStyleSheet("""
-                QLabel {
-                    font-size: 14px;
-                    color: #f44336;
-                    font-weight: bold;
-                    padding: 5px 10px;
-                    background-color: rgba(244, 67, 54, 0.2);
-                    border-radius: 5px;
-                    border: 1px solid #f44336;
-                }
-            """)
-        else:
-            self.simulation_status_label.setStyleSheet("""
-                QLabel {
-                    font-size: 14px;
-                    color: #ff9800;
-                    font-weight: bold;
-                    padding: 5px 10px;
-                    background-color: rgba(255, 152, 0, 0.2);
-                    border-radius: 5px;
-                    border: 1px solid #ff9800;
-                }
-            """)
-    
-    if hasattr(self, 'simulation_stats_label') and stats:
-        self.simulation_stats_label.setText(stats)
+    try:
+        if hasattr(self, 'simulation_progress_bar') and hasattr(self, 'simulation_progress_label'):
+            # 計算進度百分比
+            if total_balls > 0:
+                progress = int((current_balls / total_balls) * 100)
+                self.simulation_progress_bar.setValue(progress)
+                
+                # 更新進度標籤
+                if status:
+                    self.simulation_progress_label.setText(f"{status} - 已發送 {current_balls}/{total_balls} 顆球 ({progress}%)")
+                else:
+                    self.simulation_progress_label.setText(f"已發送 {current_balls}/{total_balls} 顆球 ({progress}%)")
+            else:
+                self.simulation_progress_bar.setValue(0)
+                self.simulation_progress_label.setText("準備開始訓練")
+    except Exception as e:
+        if hasattr(self, 'log_message'):
+            self.log_message(f"❌ 更新進度條失敗: {e}")
+
+
+def reset_simulation_progress(self):
+    """重置模擬對打進度條"""
+    try:
+        if hasattr(self, 'simulation_progress_bar') and hasattr(self, 'simulation_progress_label'):
+            self.simulation_progress_bar.setValue(0)
+            self.simulation_progress_label.setText("準備開始訓練")
+    except Exception as e:
+        if hasattr(self, 'log_message'):
+            self.log_message(f"❌ 重置進度條失敗: {e}")
+
+

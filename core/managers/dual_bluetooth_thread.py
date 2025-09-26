@@ -190,13 +190,16 @@ class DualBluetoothThread(QThread):
             是否成功發送
         """
         try:
-            # 使用信號發送調試信息到 GUI
-            self.error_occurred.emit(self.machine_type, f"🔍 開始發送: {area_section}")
-            
             # 檢查發球冷卻時間
             current_time = time.time()
             if current_time - self.last_shot_time < self.shot_cooldown:
-                await asyncio.sleep(self.shot_cooldown - (current_time - self.last_shot_time))
+                try:
+                    await asyncio.sleep(self.shot_cooldown - (current_time - self.last_shot_time))
+                except RuntimeError as e:
+                    if "no running event loop" in str(e):
+                        time.sleep(self.shot_cooldown - (current_time - self.last_shot_time))
+                    else:
+                        raise
             
             # 選擇參數來源
             if machine_specific and self.machine_type in ["left", "right"]:
@@ -389,7 +392,6 @@ class DualMachineCoordinator:
                         await asyncio.sleep(max(0.0, interval))
                     except RuntimeError as e:
                         if "no running event loop" in str(e):
-                            import time
                             time.sleep(max(0.0, interval))
                         else:
                             raise

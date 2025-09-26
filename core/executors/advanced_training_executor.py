@@ -138,7 +138,13 @@ class AdvancedTrainingExecutor:
                 if hasattr(self.gui, 'advanced_progress_bar'):
                     self.gui.advanced_progress_bar.setValue(sent)
                 
-                await asyncio.sleep(interval)
+                try:
+                    await asyncio.sleep(interval)
+                except RuntimeError as e:
+                    if "no running event loop" in str(e):
+                        time.sleep(interval)
+                    else:
+                        raise
             else:
                 self.gui.log_message(f"{title} 完成！")
                 
