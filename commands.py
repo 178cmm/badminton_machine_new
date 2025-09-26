@@ -64,7 +64,7 @@ def parse_area_params(area_str):
             }
     except Exception as e:
         print(f"解析區域參數失敗: {e}")
-    return None
+        return None
 
 def get_area_params(area_section, machine_type="section", area_file_path="area.json"):
     """

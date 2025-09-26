@@ -190,6 +190,9 @@ class DualBluetoothThread(QThread):
             是否成功發送
         """
         try:
+            # 使用信號發送調試信息到 GUI
+            self.error_occurred.emit(self.machine_type, f"🔍 開始發送: {area_section}")
+            
             # 檢查發球冷卻時間
             current_time = time.time()
             if current_time - self.last_shot_time < self.shot_cooldown:
@@ -205,12 +208,12 @@ class DualBluetoothThread(QThread):
                 params = get_area_params(area_section, "section", self.area_file_path)
             
             if not params:
-                self.error_occurred.emit(self.machine_type, f"找不到區域 {area_section} 的參數")
+                self.error_occurred.emit(self.machine_type, f"❌ 找不到區域 {area_section} 的參數")
                 return False
             
             # 檢查連接狀態
             if not self.client or not self.is_connected:
-                self.error_occurred.emit(self.machine_type, "設備未連接")
+                self.error_occurred.emit(self.machine_type, f"❌ 設備未連接")
                 return False
             
             # 創建發球指令
@@ -221,18 +224,45 @@ class DualBluetoothThread(QThread):
                 params['height']
             )
             
-            # 發送指令
-            await self.client.write_gatt_char(self.write_char_uuid, command)
+            # 發送指令 - 使用線程安全的方式
+            try:
+                # 確保在正確的事件循環中運行
+                loop = asyncio.get_running_loop()
+                await self.client.write_gatt_char(self.write_char_uuid, command)
+            except RuntimeError as e:
+                if "no running event loop" in str(e):
+                    import concurrent.futures
+                    import threading
+                    
+                    # 在線程中運行異步操作
+                    def run_in_thread():
+                        new_loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(new_loop)
+                        try:
+                            return new_loop.run_until_complete(
+                                self.client.write_gatt_char(self.write_char_uuid, command)
+                            )
+                        finally:
+                            new_loop.close()
+                    
+                    # 使用線程池執行器
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(run_in_thread)
+                        future.result()  # 等待完成
+                else:
+                    raise
             
             # 更新發球時間
             self.last_shot_time = time.time()
             
-            # 發送成功信號
+            # 發送成功信號 - 只有在真正成功後才觸發
             self.shot_sent.emit(self.machine_type, f"已發送 {area_section}")
             return True
             
         except Exception as e:
-            self.error_occurred.emit(self.machine_type, f"發送指令失敗: {e}")
+            self.error_occurred.emit(self.machine_type, f"❌ 發送指令失敗: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     async def disconnect(self) -> bool:
@@ -350,18 +380,24 @@ class DualMachineCoordinator:
                     machine_name = "右發球機"
                 
                 if not result:
-                    print(f"❌ {machine_name} 發球失敗")
+                    self.left_thread.error_occurred.emit("coordinator", f"❌ {machine_name} 發球失敗")
                     return False
-                
-                print(f"✅ {machine_name} 發球命令已發送 ({i+1}/{total_shots})")
                 
                 # 如果不是最後一球，發送命令後立即等待間隔時間（不等待球實際發出）
                 if i < total_shots - 1:
-                    print(f"⏱️ 等待間隔時間: {interval}秒")
-                    await asyncio.sleep(max(0.0, interval))
+                    try:
+                        await asyncio.sleep(max(0.0, interval))
+                    except RuntimeError as e:
+                        if "no running event loop" in str(e):
+                            import time
+                            time.sleep(max(0.0, interval))
+                        else:
+                            raise
             return True
         except Exception as e:
-            print(f"❌ 交替發球失敗: {e}")
+            self.left_thread.error_occurred.emit("coordinator", f"❌ 交替發球失敗: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     async def _simultaneous_shots(self, left_area: str, right_area: str, count: int) -> bool:
@@ -369,32 +405,46 @@ class DualMachineCoordinator:
         try:
             total_shots = max(1, count)
             for shot_num in range(total_shots):
-                print(f"🎯 同時發球第 {shot_num + 1} 組")
                 start_time = time.time()
                 
-                # 同時發送命令給兩台發球機
-                print(f"🔍 準備同時發送: 左發球機({left_area}) + 右發球機({right_area})")
-                print(f"🔍 左發球機線程: {self.left_thread.machine_type}, 地址: {self.left_thread.device_address}")
-                print(f"🔍 右發球機線程: {self.right_thread.machine_type}, 地址: {self.right_thread.device_address}")
+                import concurrent.futures
                 
-                left_task = self.left_thread.send_shot(left_area)
-                right_task = self.right_thread.send_shot(right_area)
-                left_result, right_result = await asyncio.gather(left_task, right_task)
+                # 在線程中執行左發球機發送
+                def run_left_shot():
+                    import asyncio
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        return new_loop.run_until_complete(self.left_thread.send_shot(left_area))
+                    finally:
+                        new_loop.close()
                 
-                sync_time = time.time() - start_time
-                print(f"⚡ 同步發送時間: {sync_time:.3f}s")
+                # 在線程中執行右發球機發送
+                def run_right_shot():
+                    import asyncio
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        return new_loop.run_until_complete(self.right_thread.send_shot(right_area))
+                    finally:
+                        new_loop.close()
                 
-                if sync_time > self.sync_tolerance:
-                    print(f"⚠️ 同步時間超過容差: {sync_time:.3f}s > {self.sync_tolerance}s")
+                # 使用線程池執行器並行執行
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    left_future = executor.submit(run_left_shot)
+                    right_future = executor.submit(run_right_shot)
+                    
+                    left_result = left_future.result()
+                    right_result = right_future.result()
                 
                 if not (left_result and right_result):
-                    print(f"❌ 同時發球失敗: 左={left_result}, 右={right_result}")
+                    self.left_thread.error_occurred.emit("coordinator", f"❌ 同時發球失敗: 左={left_result}, 右={right_result}")
                     return False
-                
-                print(f"✅ 同時發球成功: 左({left_area}) + 右({right_area})")
             return True
         except Exception as e:
-            print(f"❌ 同時發球失敗: {e}")
+            self.left_thread.error_occurred.emit("coordinator", f"❌ 同時發球失敗: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     

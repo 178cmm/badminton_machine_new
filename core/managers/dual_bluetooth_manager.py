@@ -512,14 +512,17 @@ class DualBluetoothManager:
     def _setup_machine_signals(self, machine_thread: DualBluetoothThread, machine_name: str):
         """設置發球機信號連接"""
         try:
+            # 修復：使用正確的機器名稱而不是 machine_type
             machine_thread.connection_status.connect(
-                lambda connected, msg: self._on_machine_connection_status(machine_name, connected, msg)
+                lambda machine_type, connected, msg: self._on_machine_connection_status(machine_name, connected, msg)
             )
+            # 修復：使用正確的機器名稱而不是 machine_type
             machine_thread.shot_sent.connect(
-                lambda msg: self._on_machine_shot_sent(machine_name, msg)
+                lambda machine_type, msg: self._on_machine_shot_sent(machine_name, msg)
             )
+            # 修復：使用正確的機器名稱而不是 machine_type
             machine_thread.error_occurred.connect(
-                lambda msg: self._on_machine_error(machine_name, msg)
+                lambda machine_type, msg: self._on_machine_error(machine_name, msg)
             )
         except Exception as e:
             self.gui.log_message(f"❌ 設置 {machine_name} 信號失敗: {e}")
