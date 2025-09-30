@@ -1,8 +1,9 @@
 import sys
 import asyncio
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                             QLabel, QPushButton, QComboBox, QGroupBox, QTabWidget)
+                             QLabel, QPushButton, QComboBox, QGroupBox, QTabWidget, QShortcut)
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QKeySequence
 import qasync
 from qasync import QEventLoop
 
@@ -53,6 +54,8 @@ class BadmintonLauncherGUI(QMainWindow):
         self.init_ui()
         # 載入訓練程式
         self.load_programs()
+        # 初始化系統服務
+        self.init_system_service()
         # 設置事件循環引用
         import asyncio
         try:
@@ -436,6 +439,12 @@ class BadmintonLauncherGUI(QMainWindow):
             letter-spacing: 1px;
         """)
         main_layout.addWidget(self.status_label)
+        
+        # 新增狀態燈（簡報筆遙控狀態顯示）
+        self.create_status_light(main_layout)
+        
+        # 初始化快捷鍵
+        self.init_shortcuts()
 
     def on_shot_sent(self, message):
         """發球發送回調"""
@@ -534,6 +543,299 @@ class BadmintonLauncherGUI(QMainWindow):
             await self.voice_control.stop()
         if self.voice_control_tts is not None:
             await self.voice_control_tts.stop()
+
+    def init_system_service(self):
+        """初始化系統服務"""
+        from core.services.system_service import SystemService
+        self.system_service = SystemService(self)
+    
+    def create_status_light(self, parent_layout):
+        """創建狀態燈顯示"""
+        self.status_light = QLabel("💤 待機")
+        self.status_light.setAlignment(Qt.AlignCenter)
+        self.status_light.setMinimumHeight(60)
+        self.status_light.setStyleSheet("""
+            QLabel {
+                font-size: 18px;
+                font-weight: bold;
+                padding: 12px 20px;
+                border-radius: 10px;
+                border: 2px solid #3d5560;
+                background-color: rgba(255, 193, 7, 0.2);
+                color: #000000;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            }
+        """)
+        parent_layout.addWidget(self.status_light)
+    
+    def init_shortcuts(self):
+        """初始化快捷鍵綁定"""
+        # 空白鍵：開始/暫停切換
+        self.space_shortcut = QShortcut(QKeySequence(Qt.Key_Space), self)
+        self.space_shortcut.activated.connect(self.toggle_start_pause)
+        
+        # Esc 鍵：急停
+        self.esc_shortcut = QShortcut(QKeySequence(Qt.Key_Escape), self)
+        self.esc_shortcut.activated.connect(self.emergency_stop)
+    
+    def toggle_start_pause(self, source="keyboard"):
+        """統一開始/暫停切換入口（智能版本）"""
+        if not hasattr(self, 'system_service'):
+            self.init_system_service()
+        
+        current_state = self.system_service.get_state()
+        
+        # 如果當前是 IDLE 狀態，先檢查是否有訓練目標
+        if current_state.value == "IDLE":
+            if not self._has_available_training_target():
+                self.log_message("💡 請先選擇訓練目標：")
+                self.log_message("   - 課程訓練：選擇套餐")
+                self.log_message("   - 手動控制：選擇發球位置")
+                self.log_message("   - 基礎訓練：選擇球路")
+                return  # 不執行狀態切換
+        
+        # 執行狀態切換
+        success = self.system_service.toggle()
+        if success:
+            new_state = self.system_service.get_state()
+            self.update_status_light(new_state)
+            self.log_event("TOGGLE_START_PAUSE", new_state.value, {"source": source})
+            
+            # 根據狀態執行相應的業務邏輯
+            if new_state.value == "RUNNING":
+                self._handle_start_training()
+            elif new_state.value == "IDLE":
+                self._handle_pause_training()
+    
+    def emergency_stop(self, source="keyboard"):
+        """急停入口"""
+        if not hasattr(self, 'system_service'):
+            self.init_system_service()
+        
+        success = self.system_service.stop()
+        if success:
+            new_state = self.system_service.get_state()
+            self.update_status_light(new_state)
+            self.log_event("EMERGENCY_STOP", new_state.value, {"source": source})
+            self._handle_emergency_stop()
+    
+    def update_status_light(self, state):
+        """更新狀態燈顯示"""
+        from core.services.system_service import State
+        
+        if state == State.RUNNING:
+            self.status_light.setText("🚀 發球中")
+            self.status_light.setStyleSheet("""
+                QLabel {
+                    font-size: 18px;
+                    font-weight: bold;
+                    padding: 12px 20px;
+                    border-radius: 10px;
+                    border: 2px solid #28a745;
+                    background-color: rgba(40, 167, 69, 0.2);
+                    color: #ffffff;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                }
+            """)
+        elif state == State.IDLE:
+            self.status_light.setText("💤 待機")
+            self.status_light.setStyleSheet("""
+                QLabel {
+                    font-size: 18px;
+                    font-weight: bold;
+                    padding: 12px 20px;
+                    border-radius: 10px;
+                    border: 2px solid #ffc107;
+                    background-color: rgba(255, 193, 7, 0.2);
+                    color: #000000;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                }
+            """)
+        elif state == State.EMERGENCY_STOP:
+            self.status_light.setText("🛑 急停")
+            self.status_light.setStyleSheet("""
+                QLabel {
+                    font-size: 18px;
+                    font-weight: bold;
+                    padding: 12px 20px;
+                    border-radius: 10px;
+                    border: 2px solid #dc3545;
+                    background-color: rgba(220, 53, 69, 0.2);
+                    color: #ffffff;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                }
+            """)
+    
+    def log_event(self, event_type: str, state: str, extra: dict = None):
+        """記錄事件到審計日誌"""
+        import json
+        import os
+        from datetime import datetime
+        
+        # 確保 logs 目錄存在
+        logs_dir = "logs"
+        if not os.path.exists(logs_dir):
+            os.makedirs(logs_dir)
+        
+        # 建立事件記錄
+        event_data = {
+            "event": event_type,
+            "state": state,
+            "timestamp": int(datetime.now().timestamp()),
+            "source": extra.get("source", "unknown") if extra else "unknown",
+            "extra": extra or {}
+        }
+        
+        # 寫入 JSON Lines 格式
+        log_file = os.path.join(logs_dir, "commands.jsonl")
+        try:
+            with open(log_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(event_data, ensure_ascii=False) + "\n")
+        except Exception as e:
+            # 寫檔失敗不致命，記錄警告
+            if hasattr(self, 'log_message'):
+                self.log_message(f"⚠️ 事件記錄失敗: {e}")
+            else:
+                print(f"⚠️ 事件記錄失敗: {e}")
+    
+    def _handle_start_training(self):
+        """處理開始訓練的業務邏輯（智能版本）"""
+        current_tab = self.tab_widget.currentWidget()
+        training_started = False
+        
+        # 1. 課程訓練
+        if hasattr(current_tab, 'start_training'):
+            try:
+                current_tab.start_training()
+                training_started = True
+                self.log_message("🚀 開始課程訓練（簡報筆遙控）")
+            except Exception as e:
+                self.log_message(f"⚠️ 課程訓練啟動失敗: {e}")
+        
+        # 2. 手動控制連發（雙機）
+        elif hasattr(current_tab, 'start_burst_mode') and hasattr(self, 'current_burst_section') and self.current_burst_section:
+            try:
+                current_tab.start_burst_mode()
+                training_started = True
+                self.log_message(f"🚀 開始連發訓練：{self.current_burst_section}（簡報筆遙控）")
+            except Exception as e:
+                self.log_message(f"⚠️ 連發訓練啟動失敗: {e}")
+        
+        # 3. 手動控制連發（單機）
+        elif hasattr(current_tab, 'start_burst_mode_single') and hasattr(self, 'single_current_burst_section') and self.single_current_burst_section:
+            try:
+                current_tab.start_burst_mode_single()
+                training_started = True
+                self.log_message(f"🚀 開始單機連發訓練：{self.single_current_burst_section}（簡報筆遙控）")
+            except Exception as e:
+                self.log_message(f"⚠️ 單機連發訓練啟動失敗: {e}")
+        
+        # 4. 基礎訓練
+        elif hasattr(current_tab, 'start_selected_training'):
+            try:
+                current_tab.start_selected_training()
+                training_started = True
+                self.log_message("🚀 開始基礎訓練（簡報筆遙控）")
+            except Exception as e:
+                self.log_message(f"⚠️ 基礎訓練啟動失敗: {e}")
+        
+        # 5. 進階訓練
+        elif hasattr(current_tab, 'start_advanced_training'):
+            try:
+                current_tab.start_advanced_training()
+                training_started = True
+                self.log_message("🚀 開始進階訓練（簡報筆遙控）")
+            except Exception as e:
+                self.log_message(f"⚠️ 進階訓練啟動失敗: {e}")
+        
+        # 6. 模擬對打
+        elif hasattr(current_tab, 'start_simulation_training'):
+            try:
+                current_tab.start_simulation_training()
+                training_started = True
+                self.log_message("🚀 開始模擬對打（簡報筆遙控）")
+            except Exception as e:
+                self.log_message(f"⚠️ 模擬對打啟動失敗: {e}")
+        
+        # 7. 熱身訓練
+        elif hasattr(current_tab, 'start_warmup'):
+            try:
+                current_tab.start_warmup()
+                training_started = True
+                self.log_message("🚀 開始熱身訓練（簡報筆遙控）")
+            except Exception as e:
+                self.log_message(f"⚠️ 熱身訓練啟動失敗: {e}")
+        
+        if not training_started:
+            self.log_message("⚠️ 無法啟動訓練：請檢查訓練設定")
+            # 如果無法啟動訓練，將狀態重置為 IDLE
+            self.system_service.reset()
+            self.update_status_light(self.system_service.get_state())
+    
+    def _handle_pause_training(self):
+        """處理暫停訓練的業務邏輯"""
+        # 暫停當前運行的訓練
+        if hasattr(self, 'training_task') and self.training_task and not self.training_task.done():
+            self.training_task.cancel()
+        
+        # 停止連發模式
+        if hasattr(self, 'burst_mode_active') and self.burst_mode_active:
+            if hasattr(self, 'stop_burst_mode'):
+                self.stop_burst_mode()
+        
+        self.log_message("⏸️ 暫停訓練（簡報筆遙控）")
+    
+    def _has_available_training_target(self):
+        """檢查是否有可用的訓練目標"""
+        current_tab = self.tab_widget.currentWidget()
+        
+        # 1. 檢查課程訓練標籤頁
+        if hasattr(current_tab, 'program_combo') and current_tab.program_combo.currentIndex() >= 0:
+            return True
+        
+        # 2. 檢查手動控制標籤頁（雙機）
+        if hasattr(current_tab, 'current_burst_section') and current_tab.current_burst_section:
+            return True
+        
+        # 3. 檢查手動控制標籤頁（單機）
+        if hasattr(current_tab, 'single_current_burst_section') and current_tab.single_current_burst_section:
+            return True
+        
+        # 4. 檢查基礎訓練標籤頁
+        if hasattr(current_tab, 'selected_training') and current_tab.selected_training:
+            return True
+        
+        # 5. 檢查進階訓練標籤頁
+        if hasattr(current_tab, 'selected_advanced_training') and current_tab.selected_advanced_training:
+            return True
+        
+        # 6. 檢查模擬對打標籤頁
+        if hasattr(current_tab, 'simulation_level') and current_tab.simulation_level:
+            return True
+        
+        # 7. 檢查熱身標籤頁
+        if hasattr(current_tab, 'selected_warmup') and current_tab.selected_warmup:
+            return True
+        
+        return False
+    
+    def _handle_emergency_stop(self):
+        """處理急停的業務邏輯"""
+        # 停止所有訓練任務
+        if hasattr(self, 'training_task') and self.training_task and not self.training_task.done():
+            self.training_task.cancel()
+        
+        # 停止連發模式
+        if hasattr(self, 'burst_mode_active') and self.burst_mode_active:
+            if hasattr(self, 'stop_burst_mode'):
+                self.stop_burst_mode()
+        
+        # 停止單機連發
+        if hasattr(self, 'single_burst_mode_active') and self.single_burst_mode_active:
+            if hasattr(self, 'stop_burst_mode_single'):
+                self.stop_burst_mode_single()
+        
+        self.log_message("🛑 急停執行（簡報筆遙控）")
 
 # 將 UI 函數從其他模組附加到 BadmintonLauncherGUI 類別
 BadmintonLauncherGUI.create_connection_tab = getattr(_ui_connection, 'create_connection_tab')

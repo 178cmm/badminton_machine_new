@@ -76,14 +76,14 @@ def create_training_tab(self):
         QPushButton:hover { background-color: #D32F2F; }
         QPushButton:disabled { background-color: #8E8E8E; color: #ECECEC; }
     """)
-    self.stop_training_button.clicked.connect(self.stop_training)
+    self.stop_training_button.clicked.connect(lambda: self.emergency_stop("ui"))
     self.stop_training_button.setEnabled(False)
     program_layout.addWidget(self.stop_training_button)
     
     # 開始訓練按鈕
     self.start_training_button = QPushButton("🚀 開始訓練")
      # 直接呼叫 asyncSlot 包裝的 start_training
-    self.start_training_button.clicked.connect(lambda checked=False: self.start_training())
+    self.start_training_button.clicked.connect(lambda: self.toggle_start_pause("ui"))
     self.start_training_button.setEnabled(False)
     program_layout.addWidget(self.start_training_button)
     

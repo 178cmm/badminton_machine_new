@@ -87,9 +87,9 @@ def _create_single_manual_tab(self) -> QWidget:
     # 控制按鈕（用 lambda 傳 self）
     single_burst_control_layout = QHBoxLayout()
     self.single_start_burst_btn = QPushButton("🚀 開始連發")
-    self.single_start_burst_btn.clicked.connect(lambda: start_burst_mode_single(self))
+    self.single_start_burst_btn.clicked.connect(lambda: self.toggle_start_pause("ui"))
     self.single_stop_burst_btn = QPushButton("⏹️ 停止連發")
-    self.single_stop_burst_btn.clicked.connect(lambda: stop_burst_mode_single(self))
+    self.single_stop_burst_btn.clicked.connect(lambda: self.emergency_stop("ui"))
     self.single_stop_burst_btn.setEnabled(False)
     single_burst_control_layout.addWidget(self.single_start_burst_btn)
     single_burst_control_layout.addWidget(self.single_stop_burst_btn)
@@ -270,9 +270,9 @@ def _create_dual_manual_tab(self) -> QWidget:
     # 連發控制按鈕
     burst_control_layout = QHBoxLayout()
     self.start_burst_btn = QPushButton("🚀 開始連發")
-    self.start_burst_btn.clicked.connect(self.start_burst_mode)
+    self.start_burst_btn.clicked.connect(lambda: self.toggle_start_pause("ui"))
     self.stop_burst_btn = QPushButton("⏹️ 停止連發")
-    self.stop_burst_btn.clicked.connect(self.stop_burst_mode)
+    self.stop_burst_btn.clicked.connect(lambda: self.emergency_stop("ui"))
     self.stop_burst_btn.setEnabled(False)
     burst_control_layout.addWidget(self.start_burst_btn)
     burst_control_layout.addWidget(self.stop_burst_btn)

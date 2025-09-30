@@ -298,3 +298,35 @@
 {"ts": 1758556640.255866, "raw_text": "近身接殺 3顆 間隔0.5秒", "command": {"intent": "RUN_PROGRAM_BY_NAME", "slots": {"program_id": "shot_16_近身接殺", "program_name": "近身接殺", "balls": 3, "interval_sec": 0.5}, "meta": {"source": "text", "raw": "近身接殺 3顆 間隔0.5秒"}}, "reply": "開始『近身接殺』：共 3 顆、每球 0.5 秒", "meta": {"source": "text"}}
 {"ts": 1758556640.2584362, "raw_text": "基礎訓練 15顆 間隔2秒", "command": {"intent": "RUN_PROGRAM_BY_NAME", "slots": {"program_id": "basic_training", "program_name": "基礎訓練", "balls": 15, "interval_sec": 2.0}, "meta": {"source": "text", "raw": "基礎訓練 15顆 間隔2秒"}}, "reply": null, "meta": {"source": "text"}}
 {"ts": 1758556640.2587929, "raw_text": "基礎訓練 15顆 間隔2秒", "command": {"intent": "RUN_PROGRAM_BY_NAME", "slots": {"program_id": "basic_training", "program_name": "基礎訓練", "balls": 15, "interval_sec": 2.0}, "meta": {"source": "text", "raw": "基礎訓練 15顆 間隔2秒"}}, "reply": "開始『基礎訓練』：共 15 顆、每球 2.0 秒", "meta": {"source": "text"}}
+{"event": "TOGGLE_START_PAUSE", "state": "RUNNING", "source": "keyboard", "timestamp": 1758938360, "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "IDLE", "source": "keyboard", "timestamp": 1758938360, "extra": {"source": "keyboard"}}
+{"event": "EMERGENCY_STOP", "state": "EMERGENCY_STOP", "source": "keyboard", "timestamp": 1758938360, "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "RUNNING", "source": "keyboard", "timestamp": 1758938368, "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "IDLE", "source": "keyboard", "timestamp": 1758938368, "extra": {"source": "keyboard"}}
+{"event": "EMERGENCY_STOP", "state": "EMERGENCY_STOP", "source": "keyboard", "timestamp": 1758938368, "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "RUNNING", "source": "keyboard", "timestamp": 1758938375, "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "IDLE", "source": "keyboard", "timestamp": 1758938375, "extra": {"source": "keyboard"}}
+{"event": "EMERGENCY_STOP", "state": "EMERGENCY_STOP", "source": "keyboard", "timestamp": 1758938375, "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "RUNNING", "source": "keyboard", "timestamp": 1758938716, "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "IDLE", "source": "keyboard", "timestamp": 1758938716, "extra": {"source": "keyboard"}}
+{"event": "EMERGENCY_STOP", "state": "EMERGENCY_STOP", "source": "keyboard", "timestamp": 1758938716, "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "RUNNING", "timestamp": 1758938867, "source": "keyboard", "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "IDLE", "timestamp": 1758938869, "source": "keyboard", "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "RUNNING", "timestamp": 1758938873, "source": "keyboard", "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "IDLE", "timestamp": 1758938875, "source": "keyboard", "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "RUNNING", "timestamp": 1758938876, "source": "keyboard", "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "IDLE", "timestamp": 1758938877, "source": "keyboard", "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "RUNNING", "timestamp": 1758938878, "source": "keyboard", "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "IDLE", "timestamp": 1758938879, "source": "keyboard", "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "RUNNING", "source": "keyboard", "timestamp": 1758939240, "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "IDLE", "source": "keyboard", "timestamp": 1758939240, "extra": {"source": "keyboard"}}
+{"event": "EMERGENCY_STOP", "state": "EMERGENCY_STOP", "source": "keyboard", "timestamp": 1758939240, "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "RUNNING", "source": "keyboard", "timestamp": 1758939248, "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "IDLE", "source": "keyboard", "timestamp": 1758939248, "extra": {"source": "keyboard"}}
+{"event": "EMERGENCY_STOP", "state": "EMERGENCY_STOP", "source": "keyboard", "timestamp": 1758939248, "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "RUNNING", "source": "keyboard", "timestamp": 1758939258, "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "IDLE", "source": "keyboard", "timestamp": 1758939258, "extra": {"source": "keyboard"}}
+{"event": "EMERGENCY_STOP", "state": "EMERGENCY_STOP", "source": "keyboard", "timestamp": 1758939258, "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "RUNNING", "source": "keyboard", "timestamp": 1758939290, "extra": {"source": "keyboard"}}
+{"event": "TOGGLE_START_PAUSE", "state": "IDLE", "source": "keyboard", "timestamp": 1758939290, "extra": {"source": "keyboard"}}
+{"event": "EMERGENCY_STOP", "state": "EMERGENCY_STOP", "source": "keyboard", "timestamp": 1758939290, "extra": {"source": "keyboard"}}
