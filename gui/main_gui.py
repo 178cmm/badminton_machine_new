@@ -37,6 +37,7 @@ from . import ui_voice as _ui_voice
 from . import ui_simulation as _ui_simulation
 from . import ui_simulate_panel as _ui_simulate_panel
 from . import ui_ai_coach as _ui_ai_coach
+from . import ui_three_machine_simple as _ui_three_machine
 
 class BadmintonLauncherGUI(QMainWindow):
     def __init__(self):
@@ -406,7 +407,7 @@ class BadmintonLauncherGUI(QMainWindow):
         main_layout.addWidget(self.tab_widget)
 
         # 創建各個標籤頁（調整順序）
-        # 由左至右：連線設定 熱身 基礎訓練 進階訓練 模擬對打 手動控制 課程訓練 文本輸入控制 系統日誌
+        # 由左至右：連線設定 熱身 基礎訓練 進階訓練 模擬對打 手動控制 課程訓練 三發球機 文本輸入控制 系統日誌
         self.create_connection_tab()
         self.create_warmup_tab()
         self.create_basic_training_tab()
@@ -414,6 +415,7 @@ class BadmintonLauncherGUI(QMainWindow):
         self.create_simulation_tab()  # 模擬對打模式
         self.create_manual_tab()
         self.create_training_tab()
+        self.create_three_machine_tab()  # 三發球機簡易控制
         self.create_text_input_tab()  # 文本輸入控制
         self.create_voice_tab()  # 語音控制
         self.create_ai_coach_tab()  # AI 教練（文字對話）
@@ -440,8 +442,8 @@ class BadmintonLauncherGUI(QMainWindow):
         """)
         main_layout.addWidget(self.status_label)
         
-        # 新增狀態燈（簡報筆遙控狀態顯示）
-        self.create_status_light(main_layout)
+        # 新增狀態燈（簡報筆遙控狀態顯示）- 已移除以節省空間
+        # self.create_status_light(main_layout)
         
         # 初始化快捷鍵
         self.init_shortcuts()
@@ -620,51 +622,9 @@ class BadmintonLauncherGUI(QMainWindow):
             self._handle_emergency_stop()
     
     def update_status_light(self, state):
-        """更新狀態燈顯示"""
-        from core.services.system_service import State
-        
-        if state == State.RUNNING:
-            self.status_light.setText("🚀 發球中")
-            self.status_light.setStyleSheet("""
-                QLabel {
-                    font-size: 18px;
-                    font-weight: bold;
-                    padding: 12px 20px;
-                    border-radius: 10px;
-                    border: 2px solid #28a745;
-                    background-color: rgba(40, 167, 69, 0.2);
-                    color: #ffffff;
-                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-                }
-            """)
-        elif state == State.IDLE:
-            self.status_light.setText("💤 待機")
-            self.status_light.setStyleSheet("""
-                QLabel {
-                    font-size: 18px;
-                    font-weight: bold;
-                    padding: 12px 20px;
-                    border-radius: 10px;
-                    border: 2px solid #ffc107;
-                    background-color: rgba(255, 193, 7, 0.2);
-                    color: #000000;
-                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-                }
-            """)
-        elif state == State.EMERGENCY_STOP:
-            self.status_light.setText("🛑 急停")
-            self.status_light.setStyleSheet("""
-                QLabel {
-                    font-size: 18px;
-                    font-weight: bold;
-                    padding: 12px 20px;
-                    border-radius: 10px;
-                    border: 2px solid #dc3545;
-                    background-color: rgba(220, 53, 69, 0.2);
-                    color: #ffffff;
-                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-                }
-            """)
+        """更新狀態燈顯示 - 已移除以節省空間"""
+        # 狀態燈已被移除，此方法保留以保持向後相容性
+        pass
     
     def log_event(self, event_type: str, state: str, extra: dict = None):
         """記錄事件到審計日誌"""
@@ -905,6 +865,8 @@ BadmintonLauncherGUI.create_simulation_tab = getattr(_ui_simulation, 'create_sim
 BadmintonLauncherGUI.start_simulation_training = getattr(_ui_simulation, 'start_simulation_training')
 BadmintonLauncherGUI.stop_simulation_training = getattr(_ui_simulation, 'stop_simulation_training')
 BadmintonLauncherGUI.connect_simulation_events = getattr(_ui_simulation, 'connect_simulation_events')
+# 三發球機相關函數
+BadmintonLauncherGUI.create_three_machine_tab = getattr(_ui_three_machine, 'create_three_machine_tab')
 # Simulate 面板
 BadmintonLauncherGUI.create_simulate_panel = getattr(_ui_simulate_panel, 'create_simulate_panel')
 BadmintonLauncherGUI._refresh_simulate_panel = getattr(_ui_simulate_panel, '_refresh_simulate_panel')

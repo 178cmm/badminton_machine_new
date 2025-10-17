@@ -28,6 +28,8 @@ class BasicTrainingExecutor:
         self.gui = gui_instance
         self.training_task = None
         self.stop_flag = False
+        self.pause_flag = False
+        self.pause_event = None
     
     def start_selected_training(self, section: str, speed_text: str, count_text: str) -> bool:
         """
@@ -201,9 +203,34 @@ class BasicTrainingExecutor:
         
         return True
     
+    def pause_training(self):
+        """暫停訓練"""
+        if not self.training_task or self.training_task.done():
+            self.gui.log_message("❌ 沒有運行中的訓練可以暫停")
+            return False
+        
+        self.pause_flag = True
+        if self.pause_event:
+            self.pause_event.clear()
+        self.gui.log_message("⏸️ 訓練已暫停")
+        return True
+    
+    def resume_training(self):
+        """恢復訓練"""
+        if not self.training_task or self.training_task.done():
+            self.gui.log_message("❌ 沒有暫停中的訓練可以恢復")
+            return False
+        
+        self.pause_flag = False
+        if self.pause_event:
+            self.pause_event.set()
+        self.gui.log_message("▶️ 訓練已恢復")
+        return True
+    
     def stop_training(self):
         """停止訓練"""
         self.stop_flag = True
+        self.pause_flag = False
         try:
             if self.training_task and not self.training_task.done():
                 self.training_task.cancel()
@@ -251,12 +278,23 @@ class BasicTrainingExecutor:
     async def _execute_training(self, section: str, interval: float, num_shots: int, display_name: str):
         """執行訓練的實際邏輯"""
         try:
+            import asyncio
+            self.pause_event = asyncio.Event()
+            self.pause_event.set()  # 初始狀態為非暫停
             sent_count = 0
             
             for _ in range(num_shots):
                 if self.stop_flag:
                     self.gui.log_message("訓練已被停止")
                     break
+                
+                # 檢查暫停狀態
+                if self.pause_flag:
+                    self.gui.log_message("訓練已暫停，等待恢復...")
+                    await self.pause_event.wait()
+                    if self.stop_flag:
+                        break
+                    self.gui.log_message("訓練已恢復")
                 
                 if not self.gui.bluetooth_thread or not self.gui.bluetooth_thread.is_connected:
                     self.gui.log_message("請先連接發球機")
