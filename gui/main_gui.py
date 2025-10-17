@@ -18,7 +18,7 @@ from commands import read_data_from_json, calculate_crc16_modbus, create_shot_co
 VoiceControl = None
 # 新的 TTS 語音控制系統
 try:
-    from voice_control_tts import VoiceControlTTS
+    from scripts.voice_control_tts import VoiceControlTTS
     TTS_VOICE_AVAILABLE = True
 except ImportError:
     TTS_VOICE_AVAILABLE = False
@@ -38,6 +38,7 @@ from . import ui_simulation as _ui_simulation
 from . import ui_simulate_panel as _ui_simulate_panel
 from . import ui_ai_coach as _ui_ai_coach
 from . import ui_three_machine_simple as _ui_three_machine
+from . import ui_custom_shot_control as _ui_custom_shot
 
 class BadmintonLauncherGUI(QMainWindow):
     def __init__(self):
@@ -416,6 +417,7 @@ class BadmintonLauncherGUI(QMainWindow):
         self.create_manual_tab()
         self.create_training_tab()
         self.create_three_machine_tab()  # 三發球機簡易控制
+        self.create_custom_shot_tab()  # 自定義發球控制
         self.create_text_input_tab()  # 文本輸入控制
         self.create_voice_tab()  # 語音控制
         self.create_ai_coach_tab()  # AI 教練（文字對話）
@@ -867,6 +869,8 @@ BadmintonLauncherGUI.stop_simulation_training = getattr(_ui_simulation, 'stop_si
 BadmintonLauncherGUI.connect_simulation_events = getattr(_ui_simulation, 'connect_simulation_events')
 # 三發球機相關函數
 BadmintonLauncherGUI.create_three_machine_tab = getattr(_ui_three_machine, 'create_three_machine_tab')
+# 自定義發球控制相關函數
+BadmintonLauncherGUI.create_custom_shot_tab = getattr(_ui_custom_shot, 'create_custom_shot_control_tab')
 # Simulate 面板
 BadmintonLauncherGUI.create_simulate_panel = getattr(_ui_simulate_panel, 'create_simulate_panel')
 BadmintonLauncherGUI._refresh_simulate_panel = getattr(_ui_simulate_panel, '_refresh_simulate_panel')

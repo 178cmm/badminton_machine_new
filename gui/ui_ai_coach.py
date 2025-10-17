@@ -22,7 +22,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.audit.audit_reader import AuditReader
-from voice_control_tts import VoiceControlTTS, VoiceConfig
+from scripts.voice_control_tts import VoiceControlTTS, VoiceConfig
 
 
 class AICoachWorker(QThread):

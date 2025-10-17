@@ -28,11 +28,16 @@ def log_message(self, message):
     line = f"[{timestamp}] {message}"
     
     try:
-        self.log_text.append(line)
-        # 使用更安全的方式滾動到底部
-        cursor = self.log_text.textCursor()
-        cursor.movePosition(cursor.End)
-        self.log_text.setTextCursor(cursor)
+        # 檢查 log_text 是否存在
+        if hasattr(self, 'log_text') and self.log_text is not None:
+            self.log_text.append(line)
+            # 使用更安全的方式滾動到底部
+            cursor = self.log_text.textCursor()
+            cursor.movePosition(cursor.End)
+            self.log_text.setTextCursor(cursor)
+        else:
+            # 如果 log_text 不存在，先輸出到控制台
+            print(line)
     except Exception as e:
         print(f"日誌記錄錯誤: {e}")
     

@@ -81,11 +81,19 @@ class AuditReader:
                 timestamp_str = entry.get("timestamp", "")
                 if timestamp_str:
                     try:
-                        # 嘗試解析 ISO 格式時間戳
-                        entry_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00')).timestamp()
+                        # 處理不同格式的時間戳
+                        if isinstance(timestamp_str, (int, float)):
+                            # 如果是數字時間戳，直接使用
+                            entry_time = float(timestamp_str)
+                        elif isinstance(timestamp_str, str):
+                            # 如果是字符串，嘗試解析 ISO 格式
+                            entry_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00')).timestamp()
+                        else:
+                            continue
+                        
                         if entry_time >= cutoff_time:
                             recent_entries.append(self.get_command_summary(entry))
-                    except ValueError:
+                    except (ValueError, AttributeError):
                         # 如果時間戳格式不正確，跳過
                         continue
         except Exception as e:

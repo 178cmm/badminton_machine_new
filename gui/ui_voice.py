@@ -301,7 +301,7 @@ def create_voice_tab(self):
         
         # 創建新的語音控制（簡化版）
         try:
-            from voice_control_tts import VoiceControlTTS, VoiceConfig
+            from scripts.voice_control_tts import VoiceControlTTS, VoiceConfig
             
             # 配置語音設定
             config = VoiceConfig()
