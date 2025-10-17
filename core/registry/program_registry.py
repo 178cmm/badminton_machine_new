@@ -1,19 +1,22 @@
 """
 Program Registry
 
-載入 training_programs.json 與文本描述，提供以名稱為主的比對能力。
+載入訓練配置與文本描述，提供以名稱為主的比對能力。
+支援新的配置管理器和向後相容。
 """
 
 import json
 import os
 from typing import Any, Dict, List, Optional, Tuple
 from core.nlu.normalizer import normalize_query, strip_suffix, apply_synonyms
+from core.config import get_config_manager
 import re
 
 
 class ProgramRegistry:
     def __init__(self, project_root: Optional[str] = None):
         self.project_root = project_root or os.getcwd()
+        # 向後相容：保留舊檔案路徑
         self.programs_path = os.path.join(self.project_root, "training_programs.json")
         self.description_path = os.path.join(self.project_root, "discription.txt")
         self.programs: Dict[str, Any] = {}
@@ -22,17 +25,35 @@ class ProgramRegistry:
         self._load()
 
     def _load(self) -> None:
-        # programs
-        try:
-            with open(self.programs_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except Exception:
-            data = {}
-
-        # 假設結構：{"programs": [{"id":..., "name":..., "shots": [...]}, ...]}
-        # 支援現有 JSON 結構：training_programs 字典
-        training_programs = data.get("training_programs") or {}
-        for pid, p in training_programs.items():
+        # 優先使用新的配置管理器
+        config_manager = get_config_manager()
+        
+        # 嘗試從新配置載入
+        all_programs = {}
+        
+        # 載入基礎訓練
+        basic_configs = config_manager.get_basic_training_configs()
+        if basic_configs and "categories" in basic_configs:
+            for pid, p in basic_configs["categories"].items():
+                all_programs[pid] = p
+        
+        # 載入課程訓練
+        course_configs = config_manager.get_course_training_configs()
+        if course_configs and "categories" in course_configs:
+            for pid, p in course_configs["categories"].items():
+                all_programs[pid] = p
+        
+        # 如果新配置沒有資料，回退到舊檔案
+        if not all_programs:
+            try:
+                with open(self.programs_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                all_programs = data.get("training_programs") or {}
+            except Exception:
+                all_programs = {}
+        
+        # 處理所有程式
+        for pid, p in all_programs.items():
             name = p.get("name") or pid
             p["id"] = pid
             p["category"] = p.get("difficulty")

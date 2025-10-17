@@ -109,10 +109,10 @@ def create_training_tab(self):
     self.tab_widget.addTab(training_widget, "課程訓練")
 
 
-def execute_training_command(self, command, programs_data):
+def execute_training_command(self, command, programs_data=None):
     """根據用戶的指令，執行相應的訓練操作（UI 層面的處理）"""
     if not hasattr(self, 'course_executor'):
         self.course_executor = create_course_executor(self)
     
-    # 使用課程執行器處理命令邏輯
+    # 使用課程執行器處理命令邏輯（programs_data 可能為 None，執行器會使用新配置）
     self.course_executor.execute_training_command(command, programs_data)

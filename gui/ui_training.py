@@ -496,7 +496,21 @@ async def start_training(self):
         }
         level_program_id = level_id_map.get(level_text)
         section = None
-        if level_program_id and self.programs_data and level_program_id in self.programs_data.get("training_programs", {}):
+        
+        # 優先使用新的配置管理器
+        from core.config import get_config_manager
+        config_manager = get_config_manager()
+        
+        course_training = config_manager.get_course_training_config(level_program_id)
+        if course_training:
+            config = course_training.get('config', {})
+            shots = config.get('shots', [])
+            for shot in shots:
+                if shot.get("description") == current_text:
+                    section = shot.get("section")
+                    break
+        elif self.programs_data and level_program_id in self.programs_data.get("training_programs", {}):
+            # 回退到舊的 programs_data
             for shot in self.programs_data["training_programs"][level_program_id].get("shots", []):
                 if shot.get("description") == current_text:
                     section = shot.get("section")
@@ -559,16 +573,39 @@ async def start_training(self):
         return
     else:
         # 套餐模式
-        program = self.programs_data["training_programs"][current_program_id]
+        program = None
+        
+        # 優先使用新的配置管理器
+        config_manager = get_config_manager()
+        
+        # 嘗試從新配置載入
+        if current_program_id.startswith("level"):
+            # 課程訓練
+            course_training = config_manager.get_course_training_config(current_program_id)
+            if course_training:
+                program = course_training
+        else:
+            # 基礎訓練
+            basic_training = config_manager.get_basic_training_config(current_program_id)
+            if basic_training:
+                program = basic_training
+        
+        # 回退到舊的 programs_data
+        if not program and self.programs_data and current_program_id in self.programs_data.get("training_programs", {}):
+            program = self.programs_data["training_programs"][current_program_id]
+        
+        if not program:
+            self.log_message(f"無法找到訓練套餐: {current_program_id}")
+            return
         
         # 設置UI狀態
         self.start_training_button.setEnabled(False)
         self.stop_training_button.setEnabled(True)
         self.progress_bar.setVisible(True)
         self.stop_flag = False
-        self.progress_bar.setMaximum(program['repeat_times'])
+        self.progress_bar.setMaximum(program.get('repeat_times', 1))
         self.progress_bar.setValue(0)
-        self.log_message(f"開始執行: {program['name']}")
+        self.log_message(f"開始執行: {program.get('name', current_program_id)}")
         
         # 直接使用execute_training方法
         self.training_task = self.create_async_task(self.execute_training(program, interval_override, balls_override))

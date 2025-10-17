@@ -95,7 +95,16 @@ class SingleMachineWidget(QWidget):
     def _load_training_programs(self) -> Dict:
         """載入訓練套餐數據"""
         try:
-            # 獲取專案根目錄
+            # 優先使用新的配置管理器
+            from core.config import get_config_manager
+            config_manager = get_config_manager()
+            
+            # 嘗試從新配置載入基礎訓練
+            basic_training = config_manager.get_basic_training_config("basic_training")
+            if basic_training:
+                return basic_training
+            
+            # 回退到舊檔案
             current_dir = os.path.dirname(os.path.abspath(__file__))
             project_root = os.path.dirname(current_dir)
             programs_file = os.path.join(project_root, "training_programs.json")

@@ -77,6 +77,7 @@ class TextCommandExecutor:
         """執行解析後的命令"""
         try:
             # 使用 GUI 的 execute_training_command 方法
+            # programs_data 可能為 None，GUI 會使用新配置管理器
             programs_data = getattr(self.gui, 'programs_data', None)
             self.gui.execute_training_command(command, programs_data)
         except Exception as e:

@@ -1,0 +1,362 @@
+{
+    "training_programs": {
+        "level2_basic": {
+            "name": "第2級基礎訓練",
+            "description": "適合初學者的基礎擊球訓練",
+            "difficulty": "beginner",
+            "duration_minutes": 20,
+            "shots": [
+                {
+                    "section": "sec11_1",
+                    "description": "定點反手平抽球 (直線)",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec15_1",
+                    "description": "定點正手平抽球(直線)",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec23_2",
+                    "description": "定點正手切球 (直線)",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec4_1",
+                    "description": "定點正手放網前球 (直線)",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec2_1",
+                    "description": "定點反手放網前球 (直線)",
+                    "delay_seconds": 5
+                }
+            ],
+            "repeat_times": 4
+        },
+        "level3_intermediate": {
+            "name": "第3級中級訓練",
+            "description": "中級技巧訓練，包含高遠球和切球",
+            "difficulty": "intermediate",
+            "duration_minutes": 25,
+            "shots": [
+                {
+                    "section": "sec4_1",
+                    "description": "定點正手挑後場高遠 (直線)",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec2_1",
+                    "description": "定點反手挑後場高遠 (直線)",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec25_2",
+                    "description": "定點正手切球 (斜線)",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec25_2",
+                    "description": "定點正手高遠球 (直線+斜線)",
+                    "delay_seconds": 5
+                }
+            ],
+            "repeat_times": 5
+        },
+        "level4_advanced": {
+            "name": "第4級進階訓練",
+            "description": "進階技巧訓練，包含多種擊球方式",
+            "difficulty": "advanced",
+            "duration_minutes": 30,
+            "shots": [
+                {
+                    "section": "sec11_1",
+                    "description": "定點反手平抽球 (直線+斜線)",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec15_1",
+                    "description": "定點正手平抽球(直線+斜線)",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec25_2",
+                    "description": "定點正手切球 (直線+斜線)",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec5_1",
+                    "description": "定點正手挑後場高遠 (直線+斜線)",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec1_1",
+                    "description": "定點反手挑後場高遠 (直線+斜線)",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec5_1",
+                    "description": "定點正手放網前球 (直線+斜線)",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec1_1",
+                    "description": "定點反手放網前球 (直線+斜線)",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec23_2",
+                    "description": "定點正手殺球(直線)",
+                    "delay_seconds": 5
+                }
+            ],
+            "repeat_times": 3
+        },
+        "level5_movement": {
+            "name": "第5級移動訓練",
+            "description": "中心位置到各方向的移動擊球訓練",
+            "difficulty": "advanced",
+            "duration_minutes": 35,
+            "shots": [
+                {
+                    "section": "sec5_1",
+                    "description": "中心 to 右前方擊球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec1_1",
+                    "description": "中心 to 左前方擊球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec25_2",
+                    "description": "中心 to 右後方擊球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec21_2",
+                    "description": "中心 to 左後方擊球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec15_1",
+                    "description": "中心 to 右方擊球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec11_1",
+                    "description": "中心 to 左方擊球",
+                    "delay_seconds": 6
+                }
+            ],
+            "repeat_times": 4
+        },
+        "level6_multi_point": {
+            "name": "第6級多點移動訓練",
+            "description": "多點移動擊球，提高移動能力",
+            "difficulty": "advanced",
+            "duration_minutes": 40,
+            "shots": [
+                {
+                    "section": "sec5_1",
+                    "description": "前兩點移動擊球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec1_1",
+                    "description": "前兩點移動擊球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec25_2",
+                    "description": "後兩點移動擊球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec21_2",
+                    "description": "後兩點移動擊球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec15_1",
+                    "description": "左右移動平球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec11_1",
+                    "description": "左右移動平球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec25_2",
+                    "description": "右邊兩點前後移動擊球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec5_1",
+                    "description": "右邊兩點前後移動擊球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec21_2",
+                    "description": "左邊兩點前後移動擊球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec1_1",
+                    "description": "左邊兩點前後移動擊球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec25_2",
+                    "description": "左前到右後移動擊球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec1_1",
+                    "description": "左前到右後移動擊球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec21_2",
+                    "description": "右前到左後移動擊球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec5_1",
+                    "description": "右前到左後移動擊球",
+                    "delay_seconds": 6
+                }
+            ],
+            "repeat_times": 2
+        },
+        "level7_advanced_skills": {
+            "name": "第7級高級技巧訓練",
+            "description": "高級技巧訓練，包含搓球、撲球、推挑等",
+            "difficulty": "expert",
+            "duration_minutes": 45,
+            "shots": [
+                {
+                    "section": "sec4_1",
+                    "description": "定點正手搓網前球",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec2_1",
+                    "description": "定點反手搓網前球",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec5_1",
+                    "description": "前兩點移動擊球+正反手搓網前球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec1_1",
+                    "description": "前兩點移動擊球+正反手搓網前球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec4_1",
+                    "description": "定點正手網前撲球",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec2_1",
+                    "description": "定點反手網前撲球",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec5_1",
+                    "description": "前兩點移動擊球+正反手網前撲球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec1_1",
+                    "description": "前兩點移動擊球+正反手網前撲球",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec9_1",
+                    "description": "定點正手推挑球",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec7_1",
+                    "description": "定點反手推挑球",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec10_1",
+                    "description": "前兩點移動擊球+正反手推挑",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec6_1",
+                    "description": "前兩點移動擊球+正反手推挑",
+                    "delay_seconds": 6
+                },
+                {
+                    "section": "sec24_1",
+                    "description": "定點正手平高球",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec21_2",
+                    "description": "定點反手高遠球",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec21_2",
+                    "description": "定點反手切球",
+                    "delay_seconds": 5
+                },
+                {
+                    "section": "sec21_2",
+                    "description": "中心 to 左後方擊球",
+                    "delay_seconds": 6
+                }
+            ],
+            "repeat_times": 2
+        },
+        "basic_training": {
+            "name": "基礎訓練",
+            "description": "基礎擊球訓練，適合所有等級",
+            "difficulty": "beginner",
+            "duration_minutes": 30,
+            "shots": [
+                {"section": "sec25_1", "description": "正手高遠球", "delay_seconds": 5},
+                {"section": "sec21_1", "description": "反手高遠球", "delay_seconds": 5},
+                {"section": "sec25_1", "description": "正手切球", "delay_seconds": 5},
+                {"section": "sec21_1", "description": "反手切球", "delay_seconds": 5},
+                {"section": "sec25_1", "description": "正手殺球", "delay_seconds": 5},
+                {"section": "sec21_1", "description": "反手殺球", "delay_seconds": 5},
+                {"section": "sec15_1", "description": "正手平抽球", "delay_seconds": 5},
+                {"section": "sec11_1", "description": "反手平抽球", "delay_seconds": 5},
+                {"section": "sec5_1", "description": "正手小球", "delay_seconds": 5},
+                {"section": "sec1_1", "description": "反手小球", "delay_seconds": 5},
+                {"section": "sec5_1", "description": "正手挑球", "delay_seconds": 5},
+                {"section": "sec1_1", "description": "反手挑球", "delay_seconds": 5},
+                {"section": "sec13_1", "description": "平推球", "delay_seconds": 5},
+                {"section": "sec20_1", "description": "正手接殺球", "delay_seconds": 5},
+                {"section": "sec16_1", "description": "反手接殺球", "delay_seconds": 5},
+                {"section": "sec18_1", "description": "近身接殺", "delay_seconds": 5}
+            ],
+            "repeat_times": 3
+        }
+    },
+    "program_categories": {
+        "beginner": ["level2_basic"],
+        "intermediate": ["level3_intermediate"],
+        "advanced": ["level4_advanced", "level5_movement"],
+        "expert": ["level6_multi_point", "level7_advanced_skills"]
+    },
+    "level_descriptions": {
+        "level2_basic": "適合初學者，學習基本擊球技巧",
+        "level3_intermediate": "中級技巧，包含高遠球和切球",
+        "level4_advanced": "進階技巧，多種擊球方式組合",
+        "level5_movement": "移動訓練，從中心到各方向的擊球",
+        "level6_multi_point": "多點移動，提高移動能力",
+        "level7_advanced_skills": "高級技巧，包含搓球、撲球、推挑等"
+    }
+} 

@@ -6,6 +6,7 @@
 
 import asyncio
 from typing import Dict, Any, Optional
+from ..config import get_config_manager
 
 
 class CourseExecutor:
@@ -197,11 +198,11 @@ class CourseExecutor:
             self.gui.log_message(f"開始當前訓練時發生錯誤: {str(e)}")
             return False
     
-    def _execute_level_program(self, command: Dict[str, Any], programs_data: Optional[Dict[str, Any]]) -> bool:
+    def _execute_level_program(self, command: Dict[str, Any], programs_data: Optional[Dict[str, Any]] = None) -> bool:
         """執行特定等級的套餐練習"""
         try:
             level = command.get('level')
-            if not level or not programs_data:
+            if not level:
                 self.gui.log_message("等級套餐練習參數不完整")
                 return False
             
@@ -210,6 +211,7 @@ class CourseExecutor:
                 from .basic_training_executor import create_basic_training_executor
                 self.gui.basic_training_executor = create_basic_training_executor(self.gui)
             
+            # 傳遞 programs_data（可能為 None，執行器會使用新配置）
             return self.gui.basic_training_executor.practice_level_programs(level, programs_data)
             
         except Exception as e:

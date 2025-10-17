@@ -1,0 +1,135 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "last_updated": "2024-01-01T00:00:00Z",
+    "description": "熱身訓練配置"
+  },
+  "categories": {
+    "basic": {
+      "name": "簡單熱身",
+      "description": "上手球熱身，供初學者培養擊球空間感使用",
+      "type": "warmup",
+      "difficulty": "beginner",
+      "duration_minutes": 3,
+      "config": {
+        "mode": "sequence",
+        "interval_seconds": 3.5,
+        "total_shots": 10,
+        "sections": ["sec23_2", "sec3_1"],
+        "shots": [
+          {
+            "section": "sec23_2",
+            "description": "高遠球",
+            "count": 5
+          },
+          {
+            "section": "sec3_1", 
+            "description": "小球",
+            "count": 5
+          }
+        ]
+      },
+      "contents": [
+        "高遠球 30 顆",
+        "小球 30 顆"
+      ],
+      "purpose": "上手球熱身，供初學者培養擊球空間感使用",
+      "time": "3 分鐘",
+      "aliases": ["基礎熱身", "簡單熱身"],
+      "tags": ["熱身", "基礎", "初學者"]
+    },
+    "advanced": {
+      "name": "進階熱身",
+      "description": "綜合熱身，活動各方向肌肉與關節",
+      "type": "warmup",
+      "difficulty": "intermediate",
+      "duration_minutes": 5,
+      "config": {
+        "mode": "sequence",
+        "interval_seconds": 3.5,
+        "total_shots": 15,
+        "sections": ["sec13_1", "sec23_2", "sec3_1"],
+        "shots": [
+          {
+            "section": "sec13_1",
+            "description": "平球",
+            "count": 5
+          },
+          {
+            "section": "sec23_2",
+            "description": "高遠球",
+            "count": 5
+          },
+          {
+            "section": "sec3_1",
+            "description": "小球",
+            "count": 5
+          }
+        ]
+      },
+      "contents": [
+        "平球 20 顆",
+        "高遠球 20 顆",
+        "切球 20 顆",
+        "殺球 20 顆",
+        "小球 20 顆"
+      ],
+      "purpose": "綜合熱身，活動各方向肌肉與關節",
+      "time": "5 分鐘",
+      "aliases": ["進階熱身", "綜合熱身"],
+      "tags": ["熱身", "進階", "綜合"]
+    },
+    "comprehensive": {
+      "name": "全面熱身",
+      "description": "全方位熱身，活動全身肌肉與關節",
+      "type": "warmup",
+      "difficulty": "advanced",
+      "duration_minutes": 8,
+      "config": {
+        "mode": "sequence",
+        "interval_seconds": 3.5,
+        "total_shots": 25,
+        "sections": ["sec13_1", "sec23_2", "sec3_1"],
+        "shots": [
+          {
+            "section": "sec13_1",
+            "description": "平球",
+            "count": 5
+          },
+          {
+            "section": "sec23_2",
+            "description": "高遠球",
+            "count": 5
+          },
+          {
+            "section": "sec3_1",
+            "description": "小球",
+            "count": 5
+          },
+          {
+            "section": "sec23_2",
+            "description": "前後跑動高遠球",
+            "count": 5
+          },
+          {
+            "section": "sec3_1",
+            "description": "前後跑動小球",
+            "count": 5
+          }
+        ]
+      },
+      "contents": [
+        "平球 20 顆",
+        "高遠球 20 顆",
+        "切球 20 顆",
+        "殺球 20 顆",
+        "小球 20 顆",
+        "前後跑動 20 顆"
+      ],
+      "purpose": "全方位熱身，活動全身肌肉與關節",
+      "time": "8 分鐘",
+      "aliases": ["全面熱身", "全方位熱身"],
+      "tags": ["熱身", "全面", "高級"]
+    }
+  }
+}

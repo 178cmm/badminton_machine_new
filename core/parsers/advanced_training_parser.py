@@ -6,6 +6,7 @@
 
 from typing import Dict, List, Optional
 import os
+from ..config import get_config_manager
 
 
 def map_speed_to_interval(speed_text: str) -> float:
@@ -120,11 +121,28 @@ def load_advanced_training_specs(file_path: str = "adavance_training.txt") -> Di
     載入進階訓練規格
     
     Args:
-        file_path: 配置檔案路徑
+        file_path: 配置檔案路徑（保留向後相容性）
         
     Returns:
         進階訓練規格字典
     """
+    # 優先使用新的配置管理器
+    config_manager = get_config_manager()
+    advanced_configs = config_manager.get_advanced_configs()
+    
+    if advanced_configs and "categories" in advanced_configs:
+        # 轉換新格式到舊格式以保持相容性
+        result = {}
+        for advanced_id, advanced_data in advanced_configs["categories"].items():
+            config = advanced_data.get("config", {})
+            result[advanced_data.get("name", advanced_id)] = {
+                "mode": config.get("mode", "random"),
+                "sections": config.get("sections", []),
+                "description": advanced_data.get("description", "")
+            }
+        return result
+    
+    # 回退到舊的檔案解析邏輯
     if not os.path.exists(file_path):
         return {}
     

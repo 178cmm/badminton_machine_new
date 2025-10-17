@@ -1,0 +1,127 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "last_updated": "2024-01-01T00:00:00Z",
+    "description": "基礎訓練配置"
+  },
+  "categories": {
+    "basic_training": {
+      "name": "基礎訓練",
+      "description": "基礎擊球訓練，適合所有等級",
+      "type": "basic",
+      "difficulty": "beginner",
+      "duration_minutes": 30,
+      "config": {
+        "mode": "sequence",
+        "interval_seconds": 5.0,
+        "total_shots": 48,
+        "sections": [
+          "sec25_1", "sec21_1", "sec25_1", "sec21_1", "sec25_1", "sec21_1",
+          "sec15_1", "sec11_1", "sec5_1", "sec1_1", "sec5_1", "sec1_1",
+          "sec13_1", "sec20_1", "sec16_1", "sec18_1"
+        ],
+        "shots": [
+          {
+            "section": "sec25_1",
+            "description": "正手高遠球",
+            "delay_seconds": 5,
+            "count": 3
+          },
+          {
+            "section": "sec21_1",
+            "description": "反手高遠球",
+            "delay_seconds": 5,
+            "count": 3
+          },
+          {
+            "section": "sec25_1",
+            "description": "正手切球",
+            "delay_seconds": 5,
+            "count": 3
+          },
+          {
+            "section": "sec21_1",
+            "description": "反手切球",
+            "delay_seconds": 5,
+            "count": 3
+          },
+          {
+            "section": "sec25_1",
+            "description": "正手殺球",
+            "delay_seconds": 5,
+            "count": 3
+          },
+          {
+            "section": "sec21_1",
+            "description": "反手殺球",
+            "delay_seconds": 5,
+            "count": 3
+          },
+          {
+            "section": "sec15_1",
+            "description": "正手平抽球",
+            "delay_seconds": 5,
+            "count": 3
+          },
+          {
+            "section": "sec11_1",
+            "description": "反手平抽球",
+            "delay_seconds": 5,
+            "count": 3
+          },
+          {
+            "section": "sec5_1",
+            "description": "正手小球",
+            "delay_seconds": 5,
+            "count": 3
+          },
+          {
+            "section": "sec1_1",
+            "description": "反手小球",
+            "delay_seconds": 5,
+            "count": 3
+          },
+          {
+            "section": "sec5_1",
+            "description": "正手挑球",
+            "delay_seconds": 5,
+            "count": 3
+          },
+          {
+            "section": "sec1_1",
+            "description": "反手挑球",
+            "delay_seconds": 5,
+            "count": 3
+          },
+          {
+            "section": "sec13_1",
+            "description": "平推球",
+            "delay_seconds": 5,
+            "count": 3
+          },
+          {
+            "section": "sec20_1",
+            "description": "正手接殺球",
+            "delay_seconds": 5,
+            "count": 3
+          },
+          {
+            "section": "sec16_1",
+            "description": "反手接殺球",
+            "delay_seconds": 5,
+            "count": 3
+          },
+          {
+            "section": "sec18_1",
+            "description": "近身接殺",
+            "delay_seconds": 5,
+            "count": 3
+          }
+        ]
+      },
+      "repeat_times": 3,
+      "aliases": ["基礎訓練", "基本訓練", "入門訓練"],
+      "tags": ["基礎", "入門", "全技能"]
+    }
+  }
+}

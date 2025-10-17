@@ -6,6 +6,7 @@
 
 from typing import Dict, List, Tuple, Optional
 import os
+from ..config import get_config_manager
 
 
 # 基礎訓練項目配置
@@ -99,6 +100,19 @@ def get_section_by_shot_name(shot_name: str) -> Optional[str]:
     Returns:
         對應的區域代碼，如果找不到則返回 None
     """
+    # 優先使用新的配置管理器
+    config_manager = get_config_manager()
+    
+    # 嘗試從基礎訓練配置中查找
+    basic_training = config_manager.get_basic_training_config("basic_training")
+    if basic_training:
+        config = basic_training.get('config', {})
+        shots = config.get('shots', [])
+        for shot in shots:
+            if shot.get('description') == shot_name:
+                return shot.get('section')
+    
+    # 回退到硬編碼映射
     return SHOT_TO_SECTION_MAP.get(shot_name)
 
 
@@ -112,6 +126,19 @@ def get_shot_name_by_section(section: str) -> Optional[str]:
     Returns:
         對應的球種名稱，如果找不到則返回 None
     """
+    # 優先使用新的配置管理器
+    config_manager = get_config_manager()
+    
+    # 嘗試從基礎訓練配置中查找
+    basic_training = config_manager.get_basic_training_config("basic_training")
+    if basic_training:
+        config = basic_training.get('config', {})
+        shots = config.get('shots', [])
+        for shot in shots:
+            if shot.get('section') == section:
+                return shot.get('description')
+    
+    # 回退到硬編碼映射
     return SECTION_TO_NAME_MAP.get(section)
 
 
@@ -122,6 +149,24 @@ def get_basic_training_items() -> List[Tuple[str, str]]:
     Returns:
         基礎訓練項目列表，每個項目包含 (名稱, 區域代碼)
     """
+    # 優先使用新的配置管理器
+    config_manager = get_config_manager()
+    
+    # 嘗試從基礎訓練配置中獲取
+    basic_training = config_manager.get_basic_training_config("basic_training")
+    if basic_training:
+        config = basic_training.get('config', {})
+        shots = config.get('shots', [])
+        items = []
+        for shot in shots:
+            description = shot.get('description', '')
+            section = shot.get('section', '')
+            if description and section:
+                items.append((description, section))
+        if items:
+            return items
+    
+    # 回退到硬編碼配置
     return BASIC_TRAININGS.copy()
 
 

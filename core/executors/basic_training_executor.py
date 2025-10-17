@@ -13,6 +13,7 @@ from ..parsers import (
     get_section_by_shot_name, 
     get_shot_name_by_section
 )
+from ..config import get_config_manager
 
 
 class BasicTrainingExecutor:
@@ -160,48 +161,85 @@ class BasicTrainingExecutor:
         finally:
             self._cleanup_training()
     
-    def practice_level_programs(self, level: int, programs_data: Dict[str, Any]) -> bool:
+    def practice_level_programs(self, level: int, programs_data: Optional[Dict[str, Any]] = None) -> bool:
         """
         練習特定等級的所有訓練套餐
         
         Args:
             level: 等級
-            programs_data: 訓練套餐數據
+            programs_data: 訓練套餐數據（向後相容，優先使用新配置）
             
         Returns:
             是否成功開始練習
         """
-        # 獲取該等級的所有訓練套餐
-        level_key = f"level{level}_basic"
-        if level_key not in programs_data.get("program_categories", {}):
-            self.gui.log_message(f"無法找到等級 {level} 的訓練套餐")
-            return False
+        # 優先使用新的配置管理器
+        config_manager = get_config_manager()
         
-        # 遍歷並練習每個套餐
-        for program_id in programs_data["program_categories"][level_key]:
-            if program_id in programs_data.get("training_programs", {}):
-                program = programs_data["training_programs"][program_id]
-                self.gui.log_message(f"開始練習套餐: {program.get('name', program_id)}")
+        # 嘗試從新配置載入課程訓練
+        level_key = f"level{level}_basic"
+        course_training = config_manager.get_course_training_config(level_key)
+        
+        if course_training:
+            # 使用新配置
+            self.gui.log_message(f"開始練習套餐: {course_training.get('name', level_key)}")
+            
+            config = course_training.get('config', {})
+            shots = config.get('shots', [])
+            for shot in shots:
+                if self.stop_flag:
+                    return False
                 
-                for shot in program.get('shots', []):
-                    if self.stop_flag:
+                try:
+                    # 發送發球命令
+                    if hasattr(self.gui, 'bluetooth_thread') and self.gui.bluetooth_thread:
+                        self.gui.create_async_task(self.gui.bluetooth_thread.send_shot(shot['section']))
+                    else:
+                        self.gui.log_message("藍牙連接不可用")
                         return False
                     
-                    try:
-                        # 發送發球命令
-                        if hasattr(self.gui, 'bluetooth_thread') and self.gui.bluetooth_thread:
-                            self.gui.create_async_task(self.gui.bluetooth_thread.send_shot(shot['section']))
-                        else:
-                            self.gui.log_message("藍牙連接不可用")
+                    self.gui.log_message(f"已發送 {shot.get('description', shot['section'])}")
+                    time.sleep(shot.get('delay_seconds', 3.5))
+                except Exception as e:
+                    self.gui.log_message(f"發球失敗: {e}")
+                    return False
+            
+            return True
+        
+        # 回退到舊的 programs_data 邏輯
+        if programs_data:
+            level_key = f"level{level}_basic"
+            if level_key not in programs_data.get("program_categories", {}):
+                self.gui.log_message(f"無法找到等級 {level} 的訓練套餐")
+                return False
+            
+            # 遍歷並練習每個套餐
+            for program_id in programs_data["program_categories"][level_key]:
+                if program_id in programs_data.get("training_programs", {}):
+                    program = programs_data["training_programs"][program_id]
+                    self.gui.log_message(f"開始練習套餐: {program.get('name', program_id)}")
+                    
+                    for shot in program.get('shots', []):
+                        if self.stop_flag:
                             return False
                         
-                        self.gui.log_message(f"已發送 {shot.get('description', shot['section'])}")
-                        time.sleep(shot.get('delay_seconds', 3.5))
-                    except Exception as e:
-                        self.gui.log_message(f"發球失敗: {e}")
-                        return False
+                        try:
+                            # 發送發球命令
+                            if hasattr(self.gui, 'bluetooth_thread') and self.gui.bluetooth_thread:
+                                self.gui.create_async_task(self.gui.bluetooth_thread.send_shot(shot['section']))
+                            else:
+                                self.gui.log_message("藍牙連接不可用")
+                                return False
+                            
+                            self.gui.log_message(f"已發送 {shot.get('description', shot['section'])}")
+                            time.sleep(shot.get('delay_seconds', 3.5))
+                        except Exception as e:
+                            self.gui.log_message(f"發球失敗: {e}")
+                            return False
+            
+            return True
         
-        return True
+        self.gui.log_message(f"無法找到等級 {level} 的訓練套餐")
+        return False
     
     def pause_training(self):
         """暫停訓練"""

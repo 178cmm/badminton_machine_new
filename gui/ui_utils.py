@@ -1,15 +1,40 @@
 from commands import read_data_from_json
 from PyQt5.QtWidgets import QPushButton
+from core.config import get_config_manager
 
+# 向後相容：保留舊檔案路徑
 PROGRAMS_FILE_PATH = "training_programs.json"
 
 
 def load_programs(self):
     """載入訓練套餐"""
-    self.programs_data = read_data_from_json(PROGRAMS_FILE_PATH)
-    if not self.programs_data:
-        self.log_message("無法載入訓練套餐配置")
-        return
+    # 優先使用新的配置管理器
+    config_manager = get_config_manager()
+    
+    # 嘗試從新配置載入
+    all_programs = {}
+    
+    # 載入基礎訓練
+    basic_configs = config_manager.get_basic_training_configs()
+    if basic_configs and "categories" in basic_configs:
+        for pid, p in basic_configs["categories"].items():
+            all_programs[pid] = p
+    
+    # 載入課程訓練
+    course_configs = config_manager.get_course_training_configs()
+    if course_configs and "categories" in course_configs:
+        for pid, p in course_configs["categories"].items():
+            all_programs[pid] = p
+    
+    # 如果新配置沒有資料，回退到舊檔案
+    if not all_programs:
+        self.programs_data = read_data_from_json(PROGRAMS_FILE_PATH)
+        if not self.programs_data:
+            self.log_message("無法載入訓練套餐配置")
+            return
+    else:
+        # 轉換為舊格式以保持相容性
+        self.programs_data = {"training_programs": all_programs}
     
     self.update_program_list()
     

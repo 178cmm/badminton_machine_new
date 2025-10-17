@@ -3,6 +3,7 @@ import asyncio
 from bleak import BleakScanner, BleakClient
 from PyQt5.QtCore import QThread, pyqtSignal
 from commands import read_data_from_json, calculate_crc16_modbus, create_shot_command, parse_area_params, get_area_params
+from core.config import get_config_manager
 
 # 藍牙通信設定
 # 設定目標設備名稱前綴和寫入特徵UUID
@@ -11,6 +12,7 @@ from commands import read_data_from_json, calculate_crc16_modbus, create_shot_co
 target_name_prefix = "YX-BE241"
 write_char_uuid = "0000ff01-0000-1000-8000-00805f9b34fb"
 AREA_FILE_PATH = "area.json"
+# 向後相容：保留舊檔案路徑
 PROGRAMS_FILE_PATH = "training_programs.json"
 
 class BluetoothThread(QThread):
