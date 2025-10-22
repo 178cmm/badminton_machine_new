@@ -753,9 +753,9 @@ class ThreeMachineSimpleWidget(QWidget):
         
         # 創建三台發球機組件
         machine_configs = [
-            ("machine_1", "發球機 1", "#4CAF50", "🏓"),
-            ("machine_2", "發球機 2", "#2196F3", "🎯"),
-            ("machine_3", "發球機 3", "#FF9800", "🏸")
+            ("machine_1", "發球機 1", "#4CAF50", " "),
+            ("machine_2", "發球機 2", "#2196F3", " "),
+            ("machine_3", "發球機 3", "#FF9800", " ")
         ]
         
         for machine_id, machine_name, color, icon in machine_configs:

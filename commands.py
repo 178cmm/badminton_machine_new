@@ -66,7 +66,7 @@ def parse_area_params(area_str):
         print(f"解析區域參數失敗: {e}")
         return None
 
-def get_area_params(area_section, machine_type="section", area_file_path="area.json"):
+def get_area_params(area_section, machine_type="section", area_file_path="config/area.json"):
     """
     從 area.json 獲取指定區域的參數
     

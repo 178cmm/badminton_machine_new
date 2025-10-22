@@ -42,7 +42,7 @@ class DualBluetoothThread(QThread):
         # 藍牙通信設定
         self.target_name_prefix = "YX-BE241"
         self.write_char_uuid = "0000ff01-0000-1000-8000-00805f9b34fb"
-        self.area_file_path = "area.json"
+        self.area_file_path = "config/area.json"
         
         # 設備信息
         self.device_address: Optional[str] = None

@@ -48,13 +48,13 @@ class ParameterControlWidget(QWidget):
     
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setSpacing(15)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(8)  # 減少間距
+        layout.setContentsMargins(20, 10, 20, 20)  # 減少上邊距
         
         # 標題
         title_label = QLabel("🎯 發球參數控制")
         title_label.setFont(QFont("Arial", 16, QFont.Bold))
-        title_label.setStyleSheet("color: #4CAF50; margin-bottom: 10px;")
+        title_label.setStyleSheet("color: #4CAF50; margin-bottom: 5px;")  # 減少下邊距
         layout.addWidget(title_label)
         
         # 參數控制組
@@ -326,13 +326,13 @@ class ShotSequenceBuilder(QWidget):
     
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setSpacing(15)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(8)  # 減少間距
+        layout.setContentsMargins(20, 10, 20, 20)  # 減少上邊距
         
         # 標題
         title_label = QLabel("📋 球序建構器")
         title_label.setFont(QFont("Arial", 16, QFont.Bold))
-        title_label.setStyleSheet("color: #9C27B0; margin-bottom: 10px;")
+        title_label.setStyleSheet("color: #9C27B0; margin-bottom: 5px;")  # 減少下邊距
         layout.addWidget(title_label)
         
         # 球序列表
@@ -356,6 +356,51 @@ class ShotSequenceBuilder(QWidget):
         """)
         sequence_layout = QVBoxLayout(sequence_group)
         
+        # 創建滾動區域
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+            QScrollBar:vertical {
+                background-color: rgba(156, 39, 176, 0.3);
+                width: 12px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background-color: rgba(156, 39, 176, 0.6);
+                border-radius: 6px;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background-color: rgba(156, 39, 176, 0.8);
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar:horizontal {
+                background-color: rgba(156, 39, 176, 0.3);
+                height: 12px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:horizontal {
+                background-color: rgba(156, 39, 176, 0.6);
+                border-radius: 6px;
+                min-width: 20px;
+            }
+            QScrollBar::handle:horizontal:hover {
+                background-color: rgba(156, 39, 176, 0.8);
+            }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                width: 0px;
+            }
+        """)
+        
+        # 創建球序列表
         self.shot_list = QListWidget()
         self.shot_list.setStyleSheet("""
             QListWidget {
@@ -379,10 +424,18 @@ class ShotSequenceBuilder(QWidget):
                 background-color: rgba(156, 39, 176, 0.3);
             }
         """)
-        self.shot_list.setMinimumHeight(200)
-        sequence_layout.addWidget(self.shot_list)
+        # 設置球序列表為可拉伸
+        self.shot_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
-        layout.addWidget(sequence_group)
+        # 將球序列表設置為滾動區域的內容
+        scroll_area.setWidget(self.shot_list)
+        
+        # 將滾動區域添加到佈局中
+        sequence_layout.addWidget(scroll_area)
+        
+        # 將球序列表組設置為可拉伸，讓它佔據更多垂直空間
+        sequence_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        layout.addWidget(sequence_group, 1)  # 拉伸比例設為1
         
         # 球序控制按鈕
         control_layout = QHBoxLayout()
@@ -424,83 +477,6 @@ class ShotSequenceBuilder(QWidget):
         
         layout.addLayout(operation_layout)
         
-        # 播放控制
-        play_group = QGroupBox("播放控制")
-        play_group.setStyleSheet("""
-            QGroupBox {
-                font-weight: bold;
-                border: 2px solid #FF5722;
-                border-radius: 10px;
-                margin-top: 1ex;
-                padding-top: 15px;
-                background-color: rgba(255, 87, 34, 0.1);
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 15px;
-                padding: 0 8px 0 8px;
-                color: #FF5722;
-                font-size: 14px;
-            }
-        """)
-        play_layout = QHBoxLayout(play_group)
-        
-        # 發球間隔設定
-        interval_label = QLabel("發球間隔:")
-        interval_label.setStyleSheet("color: #ffffff; font-weight: bold; font-size: 12px;")
-        play_layout.addWidget(interval_label)
-        
-        self.interval_spin = QDoubleSpinBox()
-        self.interval_spin.setRange(1.0, 10.0)
-        self.interval_spin.setValue(3.0)
-        self.interval_spin.setSingleStep(0.5)
-        self.interval_spin.setSuffix(" 秒")
-        self.interval_spin.setStyleSheet("""
-            QDoubleSpinBox {
-                background-color: rgba(255, 255, 255, 0.1);
-                color: #ffffff;
-                border: 2px solid #FF5722;
-                border-radius: 5px;
-                padding: 8px;
-                font-size: 12px;
-                font-weight: bold;
-                min-width: 80px;
-            }
-            QDoubleSpinBox:focus {
-                border-color: #FF5722;
-                background-color: rgba(255, 255, 255, 0.2);
-            }
-        """)
-        play_layout.addWidget(self.interval_spin)
-        
-        play_layout.addStretch()
-        
-        # 開始播放按鈕
-        play_btn = QPushButton("▶️ 開始發球")
-        play_btn.setStyleSheet("""
-            QPushButton {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #4CAF50, stop:1 #45a049);
-                color: #ffffff;
-                border: none;
-                padding: 12px 20px;
-                border-radius: 8px;
-                font-weight: bold;
-                font-size: 14px;
-                min-height: 20px;
-            }
-            QPushButton:hover {
-                opacity: 0.8;
-            }
-            QPushButton:pressed {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #45a049, stop:1 #4CAF50);
-            }
-        """)
-        play_layout.addWidget(play_btn)
-        
-        layout.addWidget(play_group)
-        
         # 儲存按鈕引用
         self.move_up_btn = move_up_btn
         self.move_down_btn = move_down_btn
@@ -508,7 +484,6 @@ class ShotSequenceBuilder(QWidget):
         self.clear_btn = clear_btn
         self.save_btn = save_btn
         self.load_btn = load_btn
-        self.play_btn = play_btn
     
     def _get_button_style(self, color: str) -> str:
         """獲取按鈕樣式"""
@@ -540,7 +515,6 @@ class ShotSequenceBuilder(QWidget):
         self.clear_btn.clicked.connect(self._clear_sequence)
         self.save_btn.clicked.connect(self._save_sequence)
         self.load_btn.clicked.connect(self._load_sequence)
-        self.play_btn.clicked.connect(self._play_sequence)
     
     def add_shot(self, params: Dict[str, int], name: str = None):
         """添加球到序列"""
@@ -640,20 +614,6 @@ class ShotSequenceBuilder(QWidget):
             except Exception as e:
                 QMessageBox.critical(self, '錯誤', f'載入失敗: {e}')
     
-    def _play_sequence(self):
-        """播放球序"""
-        if not self.shot_sequence:
-            QMessageBox.warning(self, '警告', '球序為空，無法播放！')
-            return
-        
-        # 添加間隔時間到球序數據
-        sequence_with_interval = []
-        for shot in self.shot_sequence:
-            shot_data = shot.copy()
-            shot_data['interval'] = self.interval_spin.value()
-            sequence_with_interval.append(shot_data)
-        
-        self.sig_play_sequence.emit(sequence_with_interval)
     
     def get_sequence(self) -> List[Dict[str, Any]]:
         """獲取當前球序"""
@@ -681,16 +641,16 @@ class CustomShotControlWidget(QWidget):
     def _setup_ui(self):
         # 創建主布局
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(20, 15, 20, 20)  # 減少上邊距
+        main_layout.setSpacing(15)  # 減少間距
         
         # 標題
         title_label = QLabel("🎯 自定義發球控制")
         title_label.setFont(QFont("Arial", 18, QFont.Bold))
         title_label.setStyleSheet("""
             color: #4CAF50;
-            margin-bottom: 20px;
-            padding: 10px;
+            margin-bottom: 10px;  /* 減少下邊距 */
+            padding: 8px;  /* 減少內邊距 */
             background-color: rgba(76, 175, 80, 0.1);
             border-radius: 10px;
             border: 2px solid #4CAF50;
@@ -722,7 +682,10 @@ class CustomShotControlWidget(QWidget):
         
         main_layout.addWidget(splitter)
         
-        # 狀態顯示
+        # 底部控制區域 - 狀態顯示和播放控制並排
+        bottom_layout = QHBoxLayout()
+        
+        # 左側狀態顯示區域
         status_group = QGroupBox("狀態顯示")
         status_group.setStyleSheet("""
             QGroupBox {
@@ -741,7 +704,7 @@ class CustomShotControlWidget(QWidget):
                 font-size: 14px;
             }
         """)
-        status_layout = QVBoxLayout(status_group)
+        status_group_layout = QVBoxLayout(status_group)
         
         self.status_text = QTextEdit()
         self.status_text.setMaximumHeight(120)
@@ -757,9 +720,89 @@ class CustomShotControlWidget(QWidget):
                 color: #ffffff;
             }
         """)
-        status_layout.addWidget(self.status_text)
+        status_group_layout.addWidget(self.status_text)
         
-        main_layout.addWidget(status_group)
+        # 右側播放控制區域
+        play_group = QGroupBox("播放控制")
+        play_group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 2px solid #FF5722;
+                border-radius: 10px;
+                margin-top: 1ex;
+                padding-top: 15px;
+                background-color: rgba(255, 87, 34, 0.1);
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 8px 0 8px;
+                color: #FF5722;
+                font-size: 14px;
+            }
+        """)
+        play_layout = QVBoxLayout(play_group)
+        
+        # 發球間隔設定
+        interval_layout = QHBoxLayout()
+        interval_label = QLabel("發球間隔:")
+        interval_label.setStyleSheet("color: #ffffff; font-weight: bold; font-size: 12px;")
+        interval_layout.addWidget(interval_label)
+        
+        self.interval_spin = QDoubleSpinBox()
+        self.interval_spin.setRange(1.0, 10.0)
+        self.interval_spin.setValue(3.0)
+        self.interval_spin.setSingleStep(0.5)
+        self.interval_spin.setSuffix(" 秒")
+        self.interval_spin.setStyleSheet("""
+            QDoubleSpinBox {
+                background-color: rgba(255, 255, 255, 0.1);
+                color: #ffffff;
+                border: 2px solid #FF5722;
+                border-radius: 5px;
+                padding: 8px;
+                font-size: 12px;
+                font-weight: bold;
+                min-width: 80px;
+            }
+            QDoubleSpinBox:focus {
+                border-color: #FF5722;
+                background-color: rgba(255, 255, 255, 0.2);
+            }
+        """)
+        interval_layout.addWidget(self.interval_spin)
+        interval_layout.addStretch()
+        play_layout.addLayout(interval_layout)
+        
+        # 開始播放按鈕
+        self.play_btn = QPushButton("▶️ 開始發球")
+        self.play_btn.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #4CAF50, stop:1 #45a049);
+                color: #ffffff;
+                border: none;
+                padding: 12px 20px;
+                border-radius: 8px;
+                font-weight: bold;
+                font-size: 14px;
+                min-height: 20px;
+            }
+            QPushButton:hover {
+                opacity: 0.8;
+            }
+            QPushButton:pressed {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #45a049, stop:1 #4CAF50);
+            }
+        """)
+        play_layout.addWidget(self.play_btn)
+        
+        # 將狀態顯示和播放控制並排添加
+        bottom_layout.addWidget(status_group, 1)
+        bottom_layout.addWidget(play_group, 1)
+        
+        main_layout.addLayout(bottom_layout)
         
         # 設置整體樣式
         self.setStyleSheet("""
@@ -774,8 +817,8 @@ class CustomShotControlWidget(QWidget):
         self.param_control.sig_test_shot.connect(self._on_test_shot)
         self.param_control.add_to_sequence_btn.clicked.connect(self._on_add_to_sequence)
         
-        # 球序建構器信號
-        self.sequence_builder.sig_play_sequence.connect(self._on_play_sequence)
+        # 播放控制信號
+        self.play_btn.clicked.connect(self._on_play_sequence)
     
     def _on_test_shot(self, params: Dict[str, int]):
         """測試發球"""
@@ -798,13 +841,26 @@ class CustomShotControlWidget(QWidget):
             self.sequence_builder.add_shot(params, name)
             self._log_message(f"➕ 已添加球到序列: {name}")
     
-    def _on_play_sequence(self, sequence: List[Dict[str, Any]]):
+    def _on_play_sequence(self):
         """播放球序"""
         if self.is_playing_sequence:
             self._stop_sequence()
             return
         
-        self.current_sequence = sequence.copy()
+        # 從球序建構器獲取球序數據
+        sequence = self.sequence_builder.get_sequence()
+        if not sequence:
+            self._log_message("❌ 球序為空，無法播放！")
+            return
+        
+        # 添加間隔時間到球序數據
+        sequence_with_interval = []
+        for shot in sequence:
+            shot_data = shot.copy()
+            shot_data['interval'] = self.interval_spin.value()
+            sequence_with_interval.append(shot_data)
+        
+        self.current_sequence = sequence_with_interval.copy()
         self.current_shot_index = 0
         self.is_playing_sequence = True
         

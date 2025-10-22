@@ -48,7 +48,7 @@ class DualMachineExecutor:
         """載入發球區域數據"""
         try:
             # 使用 area.json 載入發球區域數據
-            self.json_data = read_data_from_json("area.json")
+            self.json_data = read_data_from_json("config/area.json")
             
             if not self.json_data:
                 self.gui.log_message("❌ 無法載入發球區域數據")

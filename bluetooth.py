@@ -11,7 +11,7 @@ from core.config import get_config_manager
 
 target_name_prefix = "YX-BE241"
 write_char_uuid = "0000ff01-0000-1000-8000-00805f9b34fb"
-AREA_FILE_PATH = "area.json"
+AREA_FILE_PATH = "config/area.json"
 # 向後相容：保留舊檔案路徑
 PROGRAMS_FILE_PATH = "training_programs.json"
 
