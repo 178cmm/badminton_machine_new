@@ -10,6 +10,7 @@
 import time
 import json
 import os
+import threading
 from typing import Dict
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, 
@@ -79,7 +80,7 @@ class SingleMachineWidget(QWidget):
         }
     """
     
-    def __init__(self, machine_id: str, machine_name: str, color: str, icon: str):
+    def __init__(self, machine_id: str, machine_name: str, color: str, icon: str, advanced_training_programs: Dict = None):
         super().__init__()
         self.machine_id = machine_id
         self.machine_name = machine_name
@@ -88,6 +89,7 @@ class SingleMachineWidget(QWidget):
         self.is_connected = False
         self.is_training = False
         self.training_programs = self._load_training_programs()
+        self.advanced_training_programs = advanced_training_programs or {}
         
         self._setup_ui()
         self._setup_connections()
@@ -99,10 +101,10 @@ class SingleMachineWidget(QWidget):
             from core.config import get_config_manager
             config_manager = get_config_manager()
             
-            # 嘗試從新配置載入基礎訓練
+            # 載入基礎訓練
             basic_training = config_manager.get_basic_training_config("basic_training")
-            if basic_training:
-                return basic_training
+            if basic_training and "config" in basic_training:
+                return basic_training["config"]
             
             # 回退到舊檔案
             current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -119,6 +121,7 @@ class SingleMachineWidget(QWidget):
         except Exception as e:
             print(f"載入訓練套餐失敗: {e}")
             return {}
+    
     
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -281,20 +284,34 @@ class SingleMachineWidget(QWidget):
         program_layout = QVBoxLayout(program_group)
         
         self.program_combo = QComboBox()
-        # 從載入的訓練套餐數據中獲取16個基礎訓練項目
+        
+        # 添加基礎訓練項目
         if self.training_programs and "shots" in self.training_programs:
             for shot in self.training_programs["shots"]:
                 description = shot.get("description", "未知訓練")
                 section = shot.get("section", "")
-                self.program_combo.addItem(description, section)
+                self.program_combo.addItem(f"基礎 - {description}", section)
         else:
-            # 後備選項
-            self.program_combo.addItems([
-                "正手高遠球", "反手高遠球", "正手切球", "反手切球", 
-                "正手殺球", "反手殺球", "正手平抽球", "反手平抽球",
-                "正手小球", "反手小球", "正手挑球", "反手挑球",
-                "平推球", "正手接殺球", "反手接殺球", "近身接殺"
-            ])
+            # 後備選項 - 使用預設的section映射
+            fallback_shots = [
+                ("正手高遠球", "sec25_1"), ("反手高遠球", "sec21_1"), 
+                ("正手切球", "sec25_1"), ("反手切球", "sec21_1"),
+                ("正手殺球", "sec25_1"), ("反手殺球", "sec21_1"), 
+                ("正手平抽球", "sec15_1"), ("反手平抽球", "sec11_1"),
+                ("正手小球", "sec5_1"), ("反手小球", "sec1_1"), 
+                ("正手挑球", "sec5_1"), ("反手挑球", "sec1_1"),
+                ("平推球", "sec13_1"), ("正手接殺球", "sec20_1"), 
+                ("反手接殺球", "sec16_1"), ("近身接殺", "sec18_1")
+            ]
+            for description, section in fallback_shots:
+                self.program_combo.addItem(f"基礎 - {description}", section)
+        
+        # 添加進階訓練套餐
+        if self.advanced_training_programs:
+            for program_id, program_data in self.advanced_training_programs.items():
+                program_name = program_data.get("name", program_id)
+                program_type = program_data.get("type", "advanced")
+                self.program_combo.addItem(f"進階 - {program_name}", f"advanced:{program_id}")
         
         program_style = self.COMBO_STYLE.replace('{color}', '#2196F3').replace('{dark_color}', '#1976D2')
         program_style = program_style.replace("padding: 6px;", "padding: 8px;").replace("font-size: 11px;", "font-size: 12px;")
@@ -660,8 +677,32 @@ class ThreeMachineSimpleWidget(QWidget):
         self.smart_coordinator = SmartCoordinationManager()
         self._setup_coordinator_connections()
         
+        # 初始化訓練狀態管理
+        self.training_threads: Dict[str, threading.Thread] = {}
+        self.training_stop_flags: Dict[str, bool] = {}
+        self.training_pause_flags: Dict[str, bool] = {}
+        
+        # 載入進階訓練套餐
+        self.advanced_training_programs = self._load_advanced_training_programs()
+        
         self._setup_ui()
         self._setup_connections()
+    
+    def _load_advanced_training_programs(self) -> Dict:
+        """載入進階訓練套餐數據"""
+        try:
+            from core.config import get_config_manager
+            config_manager = get_config_manager()
+            
+            # 載入進階訓練配置
+            advanced_configs = config_manager.get_advanced_configs()
+            if advanced_configs and "categories" in advanced_configs:
+                return advanced_configs["categories"]
+            
+            return {}
+        except Exception as e:
+            print(f"載入進階訓練套餐失敗: {e}")
+            return {}
     
     def _setup_coordinator_connections(self):
         """設置協調管理器信號連接"""
@@ -759,7 +800,7 @@ class ThreeMachineSimpleWidget(QWidget):
         ]
         
         for machine_id, machine_name, color, icon in machine_configs:
-            widget = SingleMachineWidget(machine_id, machine_name, color, icon)
+            widget = SingleMachineWidget(machine_id, machine_name, color, icon, self.advanced_training_programs)
             self.machine_widgets[machine_id] = widget
             # 設置每個組件的拉伸比例為1，確保平均分配空間
             machines_layout.addWidget(widget, 1)
@@ -1002,29 +1043,165 @@ class ThreeMachineSimpleWidget(QWidget):
         widget = self.machine_widgets.get(machine_id)
         if widget:
             widget.update_scan_status("🔍 正在掃描設備...", True)
-            # 使用QTimer模擬掃描過程
-            self._simulate_scan(machine_id)
+            # 使用真實的藍牙掃描功能
+            self._perform_real_scan(machine_id)
     
-    def _simulate_scan(self, machine_id: str):
-        """模擬掃描過程"""
-        # 使用QTimer延遲2秒後完成掃描
-        timer = QTimer()
-        timer.setSingleShot(True)
-        timer.timeout.connect(lambda: self._complete_scan(machine_id))
-        timer.start(2000)  # 2秒後執行
+    def _perform_real_scan(self, machine_id: str):
+        """執行真實的藍牙掃描"""
+        try:
+            # 直接使用同步掃描，避免事件循環問題
+            self._log_message(f"🔍 {machine_id} 使用同步掃描模式...")
+            self._perform_sync_scan(machine_id)
+        except Exception as e:
+            self._log_message(f"❌ 掃描失敗: {e}")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_scan_status("❌ 掃描失敗", False)
     
-    def _complete_scan(self, machine_id: str):
-        """完成掃描"""
-        widget = self.machine_widgets.get(machine_id)
-        if widget:
-            # 模擬找到設備
-            devices = [
-                {"name": "YX-BE241-001", "address": "AA:BB:CC:DD:EE:01"},
-                {"name": "YX-BE241-002", "address": "AA:BB:CC:DD:EE:02"}
-            ]
-            widget.update_device_list(devices)
-            widget.update_scan_status(f"✅ 找到 {len(devices)} 個設備")
-            self._log_message(f"✅ {machine_id} 掃描完成，找到 {len(devices)} 個設備")
+    async def _scan_bluetooth_devices(self, machine_id: str):
+        """異步藍牙設備掃描"""
+        try:
+            from bleak import BleakScanner
+            import asyncio
+            
+            self._log_message(f"🔍 {machine_id} 開始藍牙掃描...")
+            
+            # 掃描藍牙設備
+            devices = await BleakScanner.discover(timeout=5.0)
+            
+            # 過濾發球機設備
+            found_devices = []
+            # 只掃描前綴為YX的設備
+            
+            for device in devices or []:
+                try:
+                    name = getattr(device, 'name', None)
+                    if name:
+                        # 只檢查前綴為YX的設備
+                        if name.upper().startswith('YX'):
+                            device_info = {
+                                'name': name,
+                                'address': device.address,
+                                'rssi': getattr(device, 'rssi', 0)
+                            }
+                            found_devices.append(device_info)
+                except Exception:
+                    continue
+            
+            # 更新UI
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                if found_devices:
+                    widget.update_device_list(found_devices)
+                    widget.update_scan_status(f"✅ 找到 {len(found_devices)} 個設備")
+                    self._log_message(f"✅ {machine_id} 掃描完成，找到 {len(found_devices)} 個發球機設備")
+                else:
+                    widget.update_device_list([])
+                    widget.update_scan_status("❌ 未找到設備")
+                    self._log_message(f"❌ {machine_id} 未找到發球機設備")
+                    
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 藍牙掃描失敗: {e}")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_scan_status("❌ 掃描失敗", False)
+    
+    def _perform_sync_scan(self, machine_id: str):
+        """同步掃描（優化版本）"""
+        try:
+            import threading
+            import queue
+            import asyncio
+            
+            result_queue = queue.Queue()
+            
+            def run_scan_in_thread():
+                try:
+                    # 創建新的事件循環
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    
+                    # 直接運行掃描邏輯，避免異步函數調用問題
+                    result = new_loop.run_until_complete(self._scan_bluetooth_devices_sync(machine_id))
+                    result_queue.put(('success', result))
+                except Exception as e:
+                    result_queue.put(('error', e))
+                finally:
+                    try:
+                        new_loop.close()
+                    except:
+                        pass
+            
+            # 在後台線程中運行掃描
+            scan_thread = threading.Thread(target=run_scan_in_thread, daemon=True)
+            scan_thread.start()
+            
+            # 等待結果（最多等待15秒）
+            try:
+                status, result = result_queue.get(timeout=15)
+                if status == 'error':
+                    self._log_message(f"❌ {machine_id} 同步掃描失敗: {result}")
+                    widget = self.machine_widgets.get(machine_id)
+                    if widget:
+                        widget.update_scan_status("❌ 掃描失敗", False)
+            except queue.Empty:
+                self._log_message(f"❌ {machine_id} 掃描超時")
+                widget = self.machine_widgets.get(machine_id)
+                if widget:
+                    widget.update_scan_status("❌ 掃描超時", False)
+                    
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 同步掃描錯誤: {e}")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_scan_status("❌ 掃描錯誤", False)
+    
+    async def _scan_bluetooth_devices_sync(self, machine_id: str):
+        """同步掃描專用的藍牙設備掃描"""
+        try:
+            from bleak import BleakScanner
+            
+            self._log_message(f"🔍 {machine_id} 開始藍牙掃描...")
+            
+            # 掃描藍牙設備
+            devices = await BleakScanner.discover(timeout=5.0)
+            
+            # 過濾發球機設備
+            found_devices = []
+            # 只掃描前綴為YX的設備
+            
+            for device in devices or []:
+                try:
+                    name = getattr(device, 'name', None)
+                    if name:
+                        # 只檢查前綴為YX的設備
+                        if name.upper().startswith('YX'):
+                            device_info = {
+                                'name': name,
+                                'address': device.address,
+                                'rssi': getattr(device, 'rssi', 0)
+                            }
+                            found_devices.append(device_info)
+                except Exception:
+                    continue
+            
+            # 更新UI
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                if found_devices:
+                    widget.update_device_list(found_devices)
+                    widget.update_scan_status(f"✅ 找到 {len(found_devices)} 個設備")
+                    self._log_message(f"✅ {machine_id} 掃描完成，找到 {len(found_devices)} 個發球機設備")
+                else:
+                    widget.update_device_list([])
+                    widget.update_scan_status("❌ 未找到設備")
+                    self._log_message(f"❌ {machine_id} 未找到發球機設備")
+                    
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 藍牙掃描失敗: {e}")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_scan_status("❌ 掃描失敗", False)
     
     def _on_connect_machine(self, machine_id: str):
         """連接指定發球機"""
@@ -1033,22 +1210,327 @@ class ThreeMachineSimpleWidget(QWidget):
             selected_device = widget.device_combo.currentData()
             if selected_device:
                 self._log_message(f"🔗 連接 {machine_id} 到設備 {selected_device}...")
-                # TODO: 實現單機連接邏輯
-                # 模擬連接成功
-                widget.update_connection_status(True, f"YX-BE241-{machine_id[-1]}", selected_device)
-                self._log_message(f"✅ {machine_id} 連接成功")
+                # 執行真實的藍牙連接
+                self._perform_real_connect(machine_id, selected_device)
             else:
                 self._log_message(f"❌ {machine_id} 請先選擇設備")
+    
+    def _perform_real_connect(self, machine_id: str, device_address: str):
+        """執行真實的藍牙連接"""
+        try:
+            widget = self.machine_widgets.get(machine_id)
+            if not widget:
+                return
+            
+            # 直接使用同步連接，避免事件循環問題
+            self._log_message(f"🔗 {machine_id} 使用同步連接模式...")
+            self._perform_sync_connect(machine_id, device_address)
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 連接失敗: {e}")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_connection_status(False)
+    
+    async def _connect_bluetooth_device(self, machine_id: str, device_address: str):
+        """異步藍牙設備連接"""
+        try:
+            from bleak import BleakClient
+            import asyncio
+            
+            self._log_message(f"🔗 {machine_id} 開始連接藍牙設備 {device_address}...")
+            
+            # 創建藍牙客戶端
+            client = BleakClient(device_address)
+            
+            # 嘗試連接
+            await asyncio.wait_for(client.connect(), timeout=10.0)
+            
+            if client.is_connected:
+                # 獲取設備名稱
+                try:
+                    device_name_bytes = await client.read_gatt_char("00002a00-0000-1000-8000-00805f9b34fb")
+                    device_name = device_name_bytes.decode('utf-8', errors='ignore')
+                except Exception:
+                    device_name = f"YX-BE241-{machine_id[-1]}"
+                
+                # 更新UI
+                widget = self.machine_widgets.get(machine_id)
+                if widget:
+                    widget.update_connection_status(True, device_name, device_address)
+                    self._log_message(f"✅ {machine_id} 連接成功: {device_name} ({device_address})")
+                
+                # 保存連接信息供後續使用
+                if not hasattr(self, 'connected_devices'):
+                    self.connected_devices = {}
+                self.connected_devices[machine_id] = {
+                    'client': client,
+                    'address': device_address,
+                    'name': device_name
+                }
+            else:
+                self._log_message(f"❌ {machine_id} 連接失敗")
+                widget = self.machine_widgets.get(machine_id)
+                if widget:
+                    widget.update_connection_status(False)
+                    
+        except asyncio.TimeoutError:
+            self._log_message(f"❌ {machine_id} 連接超時")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_connection_status(False)
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 藍牙連接失敗: {e}")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_connection_status(False)
+    
+    def _perform_sync_connect(self, machine_id: str, device_address: str):
+        """同步連接（優化版本）"""
+        try:
+            import threading
+            import queue
+            import asyncio
+            
+            result_queue = queue.Queue()
+            
+            def run_connect_in_thread():
+                try:
+                    # 創建新的事件循環
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    
+                    # 直接運行連接邏輯，避免異步函數調用問題
+                    result = new_loop.run_until_complete(self._connect_bluetooth_device_sync(machine_id, device_address))
+                    result_queue.put(('success', result))
+                except Exception as e:
+                    result_queue.put(('error', e))
+                finally:
+                    try:
+                        new_loop.close()
+                    except:
+                        pass
+            
+            # 在後台線程中運行連接
+            connect_thread = threading.Thread(target=run_connect_in_thread, daemon=True)
+            connect_thread.start()
+            
+            # 等待結果（最多等待15秒）
+            try:
+                status, result = result_queue.get(timeout=15)
+                if status == 'error':
+                    self._log_message(f"❌ {machine_id} 同步連接失敗: {result}")
+                    widget = self.machine_widgets.get(machine_id)
+                    if widget:
+                        widget.update_connection_status(False)
+            except queue.Empty:
+                self._log_message(f"❌ {machine_id} 連接超時")
+                widget = self.machine_widgets.get(machine_id)
+                if widget:
+                    widget.update_connection_status(False)
+                    
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 同步連接錯誤: {e}")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_connection_status(False)
+    
+    async def _connect_bluetooth_device_sync(self, machine_id: str, device_address: str):
+        """同步連接專用的藍牙設備連接"""
+        try:
+            from bleak import BleakClient
+            import asyncio
+            
+            self._log_message(f"🔗 {machine_id} 開始連接藍牙設備 {device_address}...")
+            
+            # 創建藍牙客戶端
+            client = BleakClient(device_address)
+            
+            # 嘗試連接
+            await asyncio.wait_for(client.connect(), timeout=10.0)
+            
+            if client.is_connected:
+                # 獲取設備名稱
+                try:
+                    device_name_bytes = await client.read_gatt_char("00002a00-0000-1000-8000-00805f9b34fb")
+                    device_name = device_name_bytes.decode('utf-8', errors='ignore')
+                except Exception:
+                    device_name = f"YX-BE241-{machine_id[-1]}"
+                
+                # 更新UI
+                widget = self.machine_widgets.get(machine_id)
+                if widget:
+                    widget.update_connection_status(True, device_name, device_address)
+                    self._log_message(f"✅ {machine_id} 連接成功: {device_name} ({device_address})")
+                
+                # 保存連接信息供後續使用
+                if not hasattr(self, 'connected_devices'):
+                    self.connected_devices = {}
+                self.connected_devices[machine_id] = {
+                    'client': client,
+                    'address': device_address,
+                    'name': device_name
+                }
+            else:
+                self._log_message(f"❌ {machine_id} 連接失敗")
+                widget = self.machine_widgets.get(machine_id)
+                if widget:
+                    widget.update_connection_status(False)
+                    
+        except asyncio.TimeoutError:
+            self._log_message(f"❌ {machine_id} 連接超時")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_connection_status(False)
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 藍牙連接失敗: {e}")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_connection_status(False)
     
     def _on_disconnect_machine(self, machine_id: str):
         """斷開指定發球機"""
         widget = self.machine_widgets.get(machine_id)
         if widget:
             self._log_message(f"❌ 斷開 {machine_id}...")
-            # TODO: 實現單機斷開邏輯
-            # 模擬斷開成功
-            widget.update_connection_status(False)
-            self._log_message(f"✅ {machine_id} 已斷開")
+            # 執行真實的藍牙斷開
+            self._perform_real_disconnect(machine_id)
+    
+    def _perform_real_disconnect(self, machine_id: str):
+        """執行真實的藍牙斷開"""
+        try:
+            # 檢查是否有連接的設備
+            if hasattr(self, 'connected_devices') and machine_id in self.connected_devices:
+                device_info = self.connected_devices[machine_id]
+                client = device_info.get('client')
+                
+                if client and hasattr(client, 'is_connected') and client.is_connected:
+                    # 直接使用同步斷開，避免事件循環問題
+                    self._log_message(f"❌ {machine_id} 使用同步斷開模式...")
+                    self._perform_sync_disconnect(machine_id)
+                else:
+                    # 設備已經斷開，直接更新UI
+                    widget = self.machine_widgets.get(machine_id)
+                    if widget:
+                        widget.update_connection_status(False)
+                    self._log_message(f"✅ {machine_id} 已斷開")
+            else:
+                # 沒有連接記錄，直接更新UI
+                widget = self.machine_widgets.get(machine_id)
+                if widget:
+                    widget.update_connection_status(False)
+                self._log_message(f"✅ {machine_id} 已斷開")
+                
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 斷開失敗: {e}")
+            # 即使斷開失敗，也更新UI狀態
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_connection_status(False)
+    
+    async def _disconnect_bluetooth_device(self, machine_id: str):
+        """異步藍牙設備斷開"""
+        try:
+            if hasattr(self, 'connected_devices') and machine_id in self.connected_devices:
+                device_info = self.connected_devices[machine_id]
+                client = device_info.get('client')
+                
+                if client and hasattr(client, 'is_connected') and client.is_connected:
+                    await client.disconnect()
+                    self._log_message(f"✅ {machine_id} 藍牙連接已斷開")
+                
+                # 清理連接記錄
+                del self.connected_devices[machine_id]
+            
+            # 更新UI
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_connection_status(False)
+                
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 藍牙斷開失敗: {e}")
+            # 即使斷開失敗，也更新UI狀態
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_connection_status(False)
+    
+    def _perform_sync_disconnect(self, machine_id: str):
+        """同步斷開（優化版本）"""
+        try:
+            import threading
+            import queue
+            import asyncio
+            
+            result_queue = queue.Queue()
+            
+            def run_disconnect_in_thread():
+                try:
+                    # 創建新的事件循環
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    
+                    # 直接運行斷開邏輯，避免異步函數調用問題
+                    result = new_loop.run_until_complete(self._disconnect_bluetooth_device_sync(machine_id))
+                    result_queue.put(('success', result))
+                except Exception as e:
+                    result_queue.put(('error', e))
+                finally:
+                    try:
+                        new_loop.close()
+                    except:
+                        pass
+            
+            # 在後台線程中運行斷開
+            disconnect_thread = threading.Thread(target=run_disconnect_in_thread, daemon=True)
+            disconnect_thread.start()
+            
+            # 等待結果（最多等待5秒）
+            try:
+                status, result = result_queue.get(timeout=5)
+                if status == 'error':
+                    self._log_message(f"❌ {machine_id} 同步斷開失敗: {result}")
+                    # 即使斷開失敗，也更新UI狀態
+                    widget = self.machine_widgets.get(machine_id)
+                    if widget:
+                        widget.update_connection_status(False)
+            except queue.Empty:
+                self._log_message(f"❌ {machine_id} 斷開超時")
+                # 即使斷開超時，也更新UI狀態
+                widget = self.machine_widgets.get(machine_id)
+                if widget:
+                    widget.update_connection_status(False)
+                    
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 同步斷開錯誤: {e}")
+            # 即使斷開錯誤，也更新UI狀態
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_connection_status(False)
+    
+    async def _disconnect_bluetooth_device_sync(self, machine_id: str):
+        """同步斷開專用的藍牙設備斷開"""
+        try:
+            if hasattr(self, 'connected_devices') and machine_id in self.connected_devices:
+                device_info = self.connected_devices[machine_id]
+                client = device_info.get('client')
+                
+                if client and hasattr(client, 'is_connected') and client.is_connected:
+                    await client.disconnect()
+                    self._log_message(f"✅ {machine_id} 藍牙連接已斷開")
+                
+                # 清理連接記錄
+                del self.connected_devices[machine_id]
+            
+            # 更新UI
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_connection_status(False)
+                
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 藍牙斷開失敗: {e}")
+            # 即使斷開失敗，也更新UI狀態
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_connection_status(False)
     
     def _on_start_training(self, machine_id: str, program: str, interval: float, ball_count: int):
         """開始指定發球機訓練"""
@@ -1066,7 +1548,14 @@ class ThreeMachineSimpleWidget(QWidget):
             self._log_message(f"❌ {machine_id} 未選擇有效的訓練項目")
             return
         
-        # 創建訓練配置
+        # 檢查是否為進階訓練
+        if section.startswith("advanced:"):
+            # 進階訓練處理
+            advanced_program_id = section.replace("advanced:", "")
+            self._execute_advanced_training(machine_id, advanced_program_id, program, ball_count, interval)
+            return
+        
+        # 基礎訓練處理
         training_config = {
             "section": section,
             "description": program,
@@ -1075,37 +1564,608 @@ class ThreeMachineSimpleWidget(QWidget):
             "machine_id": machine_id
         }
         
-        # 使用基礎訓練執行器執行訓練
+        # 直接執行三發球機訓練，不依賴基礎訓練執行器
         try:
-            if not hasattr(self.gui, 'basic_training_executor'):
-                from core.executors.basic_training_executor import create_basic_training_executor
-                self.gui.basic_training_executor = create_basic_training_executor(self.gui)
+            # 檢查是否有連接的設備
+            if not hasattr(self, 'connected_devices') or machine_id not in self.connected_devices:
+                self._log_message(f"❌ {machine_id} 未連接，無法開始訓練")
+                return
             
-            # 執行單個訓練項目
-            success = self.gui.basic_training_executor.practice_specific_shot(
-                program, ball_count, interval
-            )
+            device_info = self.connected_devices[machine_id]
+            client = device_info.get('client')
             
-            if success:
-                self._log_message(f"✅ {machine_id} 訓練已開始")
-                widget.update_training_status(True, program, 0, ball_count, "訓練中")
-            else:
-                self._log_message(f"❌ {machine_id} 訓練開始失敗")
+            if not client or not client.is_connected:
+                self._log_message(f"❌ {machine_id} 藍牙連接已斷開，無法開始訓練")
+                return
+            
+            # 開始執行訓練
+            self._log_message(f"✅ {machine_id} 開始執行訓練: {program}")
+            widget.update_training_status(True, program, 0, ball_count, "訓練中")
+            
+            # 使用非阻塞的異步訓練，避免阻塞其他發球機
+            self._log_message(f"🔧 {machine_id} 使用非阻塞訓練模式...")
+            self._execute_training_non_blocking(machine_id, section, program, ball_count, interval)
                 
         except Exception as e:
             self._log_message(f"❌ {machine_id} 訓練執行錯誤: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _execute_advanced_training(self, machine_id: str, program_id: str, program_name: str, ball_count: int, interval: float):
+        """執行進階訓練"""
+        try:
+            # 獲取進階訓練配置
+            if program_id not in self.advanced_training_programs:
+                self._log_message(f"❌ {machine_id} 找不到進階訓練配置: {program_id}")
+                return
+            
+            advanced_config = self.advanced_training_programs[program_id]
+            config_data = advanced_config.get("config", {})
+            shots = config_data.get("shots", [])
+            
+            if not shots:
+                self._log_message(f"❌ {machine_id} 進階訓練配置無效: {program_id}")
+                return
+            
+            # 檢查是否有連接的設備
+            if not hasattr(self, 'connected_devices') or machine_id not in self.connected_devices:
+                self._log_message(f"❌ {machine_id} 未連接，無法開始進階訓練")
+                return
+            
+            device_info = self.connected_devices[machine_id]
+            client = device_info.get('client')
+            
+            if not client or not client.is_connected:
+                self._log_message(f"❌ {machine_id} 藍牙連接已斷開，無法開始進階訓練")
+                return
+            
+            # 開始執行進階訓練
+            self._log_message(f"✅ {machine_id} 開始執行進階訓練: {program_name}")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_training_status(True, program_name, 0, ball_count, "進階訓練中")
+            
+            # 使用非阻塞的異步訓練
+            self._log_message(f"🔧 {machine_id} 使用非阻塞進階訓練模式...")
+            self._execute_advanced_training_non_blocking(machine_id, program_id, program_name, shots, ball_count, interval)
+                
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 進階訓練執行錯誤: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _execute_advanced_training_non_blocking(self, machine_id: str, program_id: str, program_name: str, shots: list, ball_count: int, interval: float):
+        """非阻塞執行進階訓練"""
+        try:
+            # 檢查是否已經有訓練在進行
+            if machine_id in self.training_threads and self.training_threads[machine_id].is_alive():
+                self._log_message(f"⚠️ {machine_id} 已有訓練在進行中")
+                return
+            
+            # 設置停止標誌為False，暫停標誌為False
+            self.training_stop_flags[machine_id] = False
+            self.training_pause_flags[machine_id] = False
+            
+            def run_advanced_training_in_thread():
+                try:
+                    # 在獨立線程中執行進階訓練，不阻塞主線程
+                    self._execute_advanced_training_in_thread(machine_id, program_id, program_name, shots, ball_count, interval)
+                except Exception as e:
+                    self._log_message(f"❌ {machine_id} 進階訓練線程錯誤: {e}")
+                    widget = self.machine_widgets.get(machine_id)
+                    if widget:
+                        widget.update_training_status(False)
+                finally:
+                    # 清理訓練線程記錄
+                    if machine_id in self.training_threads:
+                        del self.training_threads[machine_id]
+                    if machine_id in self.training_stop_flags:
+                        del self.training_stop_flags[machine_id]
+                    if machine_id in self.training_pause_flags:
+                        del self.training_pause_flags[machine_id]
+            
+            # 在後台線程中運行進階訓練，不阻塞主線程
+            training_thread = threading.Thread(target=run_advanced_training_in_thread, daemon=True)
+            self.training_threads[machine_id] = training_thread
+            training_thread.start()
+            
+            # 立即返回，不等待訓練完成
+            self._log_message(f"🚀 {machine_id} 進階訓練已在後台啟動")
+                    
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 非阻塞進階訓練錯誤: {e}")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_training_status(False)
+    
+    def _execute_advanced_training_in_thread(self, machine_id: str, program_id: str, program_name: str, shots: list, ball_count: int, interval: float):
+        """在線程中執行進階訓練"""
+        try:
+            import asyncio
+            import time
+            import random
+            
+            # 創建新的事件循環
+            new_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(new_loop)
+            
+            try:
+                # 在事件循環中執行進階訓練
+                new_loop.run_until_complete(
+                    self._execute_advanced_training_async_in_thread(machine_id, program_id, program_name, shots, ball_count, interval)
+                )
+            except Exception as e:
+                self._log_message(f"❌ {machine_id} 進階訓練事件循環執行錯誤: {e}")
+            finally:
+                # 安全清理事件循環
+                try:
+                    # 取消所有未完成的任務
+                    pending = asyncio.all_tasks(new_loop)
+                    for task in pending:
+                        task.cancel()
+                    
+                    # 等待所有任務完成
+                    if pending:
+                        new_loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                    
+                    # 關閉事件循環
+                    new_loop.close()
+                except Exception as cleanup_error:
+                    self._log_message(f"⚠️ {machine_id} 進階訓練事件循環清理警告: {cleanup_error}")
+                    try:
+                        new_loop.close()
+                    except:
+                        pass
+                    
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 進階訓練線程失敗: {e}")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_training_status(False)
+    
+    async def _execute_advanced_training_async_in_thread(self, machine_id: str, program_id: str, program_name: str, shots: list, ball_count: int, interval: float):
+        """在線程中異步執行進階訓練"""
+        try:
+            import asyncio
+            import random
+            
+            device_info = self.connected_devices[machine_id]
+            client = device_info.get('client')
+            
+            if not client or not client.is_connected:
+                self._log_message(f"❌ {machine_id} 藍牙連接已斷開")
+                return
+            
+            # 根據進階訓練配置執行訓練
+            total_shots_sent = 0
+            
+            for i in range(ball_count):
+                # 檢查停止標誌
+                if machine_id in self.training_stop_flags and self.training_stop_flags[machine_id]:
+                    self._log_message(f"⏹️ {machine_id} 進階訓練已被停止")
+                    break
+                
+                # 檢查暫停標誌
+                while (hasattr(self, 'training_pause_flags') and 
+                       machine_id in self.training_pause_flags and 
+                       self.training_pause_flags[machine_id]):
+                    # 如果被暫停，等待恢復
+                    await asyncio.sleep(0.1)
+                    
+                    # 再次檢查停止標誌
+                    if machine_id in self.training_stop_flags and self.training_stop_flags[machine_id]:
+                        self._log_message(f"⏹️ {machine_id} 進階訓練已被停止")
+                        return
+                
+                try:
+                    # 隨機選擇一個shot配置
+                    selected_shot = random.choice(shots)
+                    section = selected_shot.get("section", "")
+                    description = selected_shot.get("description", "進階訓練")
+                    
+                    # 創建發球指令
+                    command = self._create_shot_command(section)
+                    
+                    # 發送指令
+                    write_char_uuid = "0000ff01-0000-1000-8000-00805f9b34fb"
+                    await client.write_gatt_char(write_char_uuid, command)
+                    
+                    # 更新進度
+                    widget = self.machine_widgets.get(machine_id)
+                    if widget:
+                        widget.update_training_status(True, program_name, i + 1, ball_count, "進階訓練中")
+                        # 保存當前狀態供暫停/恢復使用
+                        widget.current_program = program_name
+                        widget.current_progress = i + 1
+                        widget.total_balls = ball_count
+                    
+                    self._log_message(f"🎯 {machine_id} 進階發球 {i + 1}/{ball_count}: {description}")
+                    
+                    # 等待間隔時間
+                    if i < ball_count - 1:  # 最後一球不需要等待
+                        await asyncio.sleep(interval)
+                        
+                except Exception as e:
+                    self._log_message(f"❌ {machine_id} 第 {i + 1} 球發送失敗: {e}")
+                    # 繼續發送下一球，不中斷訓練
+                    continue
+            
+            # 進階訓練完成
+            self._log_message(f"✅ {machine_id} 進階訓練完成")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_training_status(False)
+                
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 進階訓練執行失敗: {e}")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_training_status(False)
+    
+    async def _execute_training_async(self, machine_id: str, section: str, program: str, ball_count: int, interval: float):
+        """異步執行三發球機訓練"""
+        try:
+            import asyncio
+            
+            device_info = self.connected_devices[machine_id]
+            client = device_info.get('client')
+            
+            if not client or not client.is_connected:
+                self._log_message(f"❌ {machine_id} 藍牙連接已斷開")
+                return
+            
+            # 發送訓練指令
+            for i in range(ball_count):
+                try:
+                    # 創建發球指令
+                    command = self._create_shot_command(section)
+                    
+                    # 發送指令
+                    write_char_uuid = "0000ff01-0000-1000-8000-00805f9b34fb"
+                    await client.write_gatt_char(write_char_uuid, command)
+                    
+                    # 更新進度
+                    widget = self.machine_widgets.get(machine_id)
+                    if widget:
+                        widget.update_training_status(True, program, i + 1, ball_count, "訓練中")
+                    
+                    self._log_message(f"🎯 {machine_id} 發球 {i + 1}/{ball_count}: {program}")
+                    
+                    # 等待間隔時間
+                    if i < ball_count - 1:  # 最後一球不需要等待
+                        await asyncio.sleep(interval)
+                        
+                except Exception as e:
+                    self._log_message(f"❌ {machine_id} 第 {i + 1} 球發送失敗: {e}")
+                    break
+            
+            # 訓練完成
+            self._log_message(f"✅ {machine_id} 訓練完成")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_training_status(False)
+                
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 訓練執行失敗: {e}")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_training_status(False)
+    
+    def _execute_training_non_blocking(self, machine_id: str, section: str, program: str, ball_count: int, interval: float):
+        """非阻塞執行三發球機訓練"""
+        try:
+            # 檢查是否已經有訓練在進行
+            if machine_id in self.training_threads and self.training_threads[machine_id].is_alive():
+                self._log_message(f"⚠️ {machine_id} 已有訓練在進行中")
+                return
+            
+            # 設置停止標誌為False，暫停標誌為False
+            self.training_stop_flags[machine_id] = False
+            self.training_pause_flags[machine_id] = False
+            
+            def run_training_in_thread():
+                try:
+                    # 在獨立線程中執行訓練，不阻塞主線程
+                    self._execute_training_in_thread(machine_id, section, program, ball_count, interval)
+                except Exception as e:
+                    self._log_message(f"❌ {machine_id} 訓練線程錯誤: {e}")
+                    widget = self.machine_widgets.get(machine_id)
+                    if widget:
+                        widget.update_training_status(False)
+                finally:
+                    # 清理訓練線程記錄
+                    if machine_id in self.training_threads:
+                        del self.training_threads[machine_id]
+                    if machine_id in self.training_stop_flags:
+                        del self.training_stop_flags[machine_id]
+                    if machine_id in self.training_pause_flags:
+                        del self.training_pause_flags[machine_id]
+            
+            # 在後台線程中運行訓練，不阻塞主線程
+            training_thread = threading.Thread(target=run_training_in_thread, daemon=True)
+            self.training_threads[machine_id] = training_thread
+            training_thread.start()
+            
+            # 立即返回，不等待訓練完成
+            self._log_message(f"🚀 {machine_id} 訓練已在後台啟動")
+                    
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 非阻塞訓練錯誤: {e}")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_training_status(False)
+    
+    def _execute_training_in_thread(self, machine_id: str, section: str, program: str, ball_count: int, interval: float):
+        """在線程中執行訓練"""
+        try:
+            import asyncio
+            import time
+            
+            # 創建新的事件循環
+            new_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(new_loop)
+            
+            try:
+                # 在事件循環中執行訓練
+                new_loop.run_until_complete(
+                    self._execute_training_async_in_thread(machine_id, section, program, ball_count, interval)
+                )
+            except Exception as e:
+                self._log_message(f"❌ {machine_id} 事件循環執行錯誤: {e}")
+            finally:
+                # 安全清理事件循環
+                try:
+                    # 取消所有未完成的任務
+                    pending = asyncio.all_tasks(new_loop)
+                    for task in pending:
+                        task.cancel()
+                    
+                    # 等待所有任務完成
+                    if pending:
+                        new_loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                    
+                    # 關閉事件循環
+                    new_loop.close()
+                except Exception as cleanup_error:
+                    self._log_message(f"⚠️ {machine_id} 事件循環清理警告: {cleanup_error}")
+                    try:
+                        new_loop.close()
+                    except:
+                        pass
+                    
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 線程訓練失敗: {e}")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_training_status(False)
+    
+    async def _execute_training_async_in_thread(self, machine_id: str, section: str, program: str, ball_count: int, interval: float):
+        """在線程中異步執行訓練"""
+        try:
+            import asyncio
+            
+            device_info = self.connected_devices[machine_id]
+            client = device_info.get('client')
+            
+            if not client or not client.is_connected:
+                self._log_message(f"❌ {machine_id} 藍牙連接已斷開")
+                return
+            
+            # 發送訓練指令
+            for i in range(ball_count):
+                # 檢查停止標誌
+                if machine_id in self.training_stop_flags and self.training_stop_flags[machine_id]:
+                    self._log_message(f"⏹️ {machine_id} 訓練已被停止")
+                    break
+                
+                # 檢查暫停標誌
+                while (hasattr(self, 'training_pause_flags') and 
+                       machine_id in self.training_pause_flags and 
+                       self.training_pause_flags[machine_id]):
+                    # 如果被暫停，等待恢復
+                    await asyncio.sleep(0.1)
+                    
+                    # 再次檢查停止標誌
+                    if machine_id in self.training_stop_flags and self.training_stop_flags[machine_id]:
+                        self._log_message(f"⏹️ {machine_id} 訓練已被停止")
+                        return
+                
+                try:
+                    # 創建發球指令
+                    command = self._create_shot_command(section)
+                    
+                    # 發送指令
+                    write_char_uuid = "0000ff01-0000-1000-8000-00805f9b34fb"
+                    await client.write_gatt_char(write_char_uuid, command)
+                    
+                    # 更新進度
+                    widget = self.machine_widgets.get(machine_id)
+                    if widget:
+                        widget.update_training_status(True, program, i + 1, ball_count, "訓練中")
+                        # 保存當前狀態供暫停/恢復使用
+                        widget.current_program = program
+                        widget.current_progress = i + 1
+                        widget.total_balls = ball_count
+                    
+                    self._log_message(f"🎯 {machine_id} 發球 {i + 1}/{ball_count}: {program}")
+                    
+                    # 等待間隔時間
+                    if i < ball_count - 1:  # 最後一球不需要等待
+                        await asyncio.sleep(interval)
+                        
+                except Exception as e:
+                    self._log_message(f"❌ {machine_id} 第 {i + 1} 球發送失敗: {e}")
+                    # 繼續發送下一球，不中斷訓練
+                    continue
+            
+            # 訓練完成
+            self._log_message(f"✅ {machine_id} 訓練完成")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_training_status(False)
+                
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 訓練執行失敗: {e}")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_training_status(False)
+    
+    def _execute_training_sync(self, machine_id: str, section: str, program: str, ball_count: int, interval: float):
+        """同步執行三發球機訓練（優化版本）"""
+        try:
+            import threading
+            import queue
+            import asyncio
+            import time
+            
+            result_queue = queue.Queue()
+            
+            def run_training_in_thread():
+                try:
+                    # 創建新的事件循環
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    
+                    # 運行訓練
+                    result = new_loop.run_until_complete(
+                        self._execute_training_async_sync(machine_id, section, program, ball_count, interval)
+                    )
+                    result_queue.put(('success', result))
+                except Exception as e:
+                    result_queue.put(('error', e))
+                finally:
+                    try:
+                        new_loop.close()
+                    except:
+                        pass
+            
+            # 在後台線程中運行訓練
+            training_thread = threading.Thread(target=run_training_in_thread, daemon=True)
+            training_thread.start()
+            
+            # 等待結果（最多等待訓練時間 + 30秒緩衝）
+            max_wait_time = ball_count * interval + 30
+            try:
+                status, result = result_queue.get(timeout=max_wait_time)
+                if status == 'error':
+                    self._log_message(f"❌ {machine_id} 同步訓練失敗: {result}")
+                    widget = self.machine_widgets.get(machine_id)
+                    if widget:
+                        widget.update_training_status(False)
+            except queue.Empty:
+                self._log_message(f"❌ {machine_id} 訓練超時")
+                widget = self.machine_widgets.get(machine_id)
+                if widget:
+                    widget.update_training_status(False)
+                    
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 同步訓練錯誤: {e}")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_training_status(False)
+    
+    async def _execute_training_async_sync(self, machine_id: str, section: str, program: str, ball_count: int, interval: float):
+        """同步訓練專用的異步執行方法"""
+        try:
+            import asyncio
+            
+            device_info = self.connected_devices[machine_id]
+            client = device_info.get('client')
+            
+            if not client or not client.is_connected:
+                self._log_message(f"❌ {machine_id} 藍牙連接已斷開")
+                return
+            
+            # 發送訓練指令
+            for i in range(ball_count):
+                try:
+                    # 創建發球指令
+                    command = self._create_shot_command(section)
+                    
+                    # 發送指令
+                    write_char_uuid = "0000ff01-0000-1000-8000-00805f9b34fb"
+                    await client.write_gatt_char(write_char_uuid, command)
+                    
+                    # 更新進度
+                    widget = self.machine_widgets.get(machine_id)
+                    if widget:
+                        widget.update_training_status(True, program, i + 1, ball_count, "訓練中")
+                    
+                    self._log_message(f"🎯 {machine_id} 發球 {i + 1}/{ball_count}: {program}")
+                    
+                    # 等待間隔時間
+                    if i < ball_count - 1:  # 最後一球不需要等待
+                        await asyncio.sleep(interval)
+                        
+                except Exception as e:
+                    self._log_message(f"❌ {machine_id} 第 {i + 1} 球發送失敗: {e}")
+                    break
+            
+            # 訓練完成
+            self._log_message(f"✅ {machine_id} 訓練完成")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_training_status(False)
+                
+        except Exception as e:
+            self._log_message(f"❌ {machine_id} 訓練執行失敗: {e}")
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_training_status(False)
+    
+    def _create_shot_command(self, section: str) -> bytes:
+        """創建發球指令"""
+        try:
+            # 使用commands.py中的get_area_params函數獲取參數
+            from commands import get_area_params, create_shot_command
+            
+            # 獲取section對應的參數
+            params = get_area_params(section, "section", "config/area.json")
+            if params:
+                # 使用參數創建發球指令
+                command = create_shot_command(
+                    speed=params['speed'],
+                    horizontal_angle=params['horizontal_angle'],
+                    vertical_angle=params['vertical_angle'],
+                    height=params['height']
+                )
+                self._log_message(f"✅ 使用section {section}的發球參數: speed={params['speed']}, h_angle={params['horizontal_angle']}, v_angle={params['vertical_angle']}, height={params['height']}")
+                return command
+            else:
+                self._log_message(f"⚠️ 找不到section {section}的發球參數，使用預設指令")
+                # 使用預設參數
+                return create_shot_command(speed=2, horizontal_angle=0, vertical_angle=50, height=0)
+            
+        except Exception as e:
+            self._log_message(f"❌ 創建發球指令失敗: {e}")
+            # 返回預設指令
+            try:
+                from commands import create_shot_command
+                return create_shot_command(speed=2, horizontal_angle=0, vertical_angle=50, height=0)
+            except:
+                return b'\x01\x02\x00\x32\x00'
     
     def _on_pause_training(self, machine_id: str):
         """暫停指定發球機訓練"""
         self._log_message(f"⏸️ {machine_id} 暫停訓練")
         
-        # 使用基礎訓練執行器暫停訓練
         try:
-            if hasattr(self.gui, 'basic_training_executor'):
-                self.gui.basic_training_executor.pause_training()
-                self._log_message(f"✅ {machine_id} 訓練已暫停")
-            else:
-                self._log_message(f"❌ {machine_id} 找不到訓練執行器")
+            # 設置暫停標誌
+            if machine_id not in self.training_stop_flags:
+                self.training_stop_flags[machine_id] = False
+            
+            # 設置暫停狀態
+            if not hasattr(self, 'training_pause_flags'):
+                self.training_pause_flags = {}
+            self.training_pause_flags[machine_id] = True
+            
+            # 更新界面狀態
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_training_status(True, widget.current_program, widget.current_progress, widget.total_balls, "已暫停")
+            
+            self._log_message(f"✅ {machine_id} 訓練已暫停")
+            
         except Exception as e:
             self._log_message(f"❌ {machine_id} 暫停訓練錯誤: {e}")
     
@@ -1113,13 +2173,18 @@ class ThreeMachineSimpleWidget(QWidget):
         """恢復指定發球機訓練"""
         self._log_message(f"▶️ {machine_id} 恢復訓練")
         
-        # 使用基礎訓練執行器恢復訓練
         try:
-            if hasattr(self.gui, 'basic_training_executor'):
-                self.gui.basic_training_executor.resume_training()
-                self._log_message(f"✅ {machine_id} 訓練已恢復")
-            else:
-                self._log_message(f"❌ {machine_id} 找不到訓練執行器")
+            # 清除暫停標誌
+            if hasattr(self, 'training_pause_flags') and machine_id in self.training_pause_flags:
+                self.training_pause_flags[machine_id] = False
+            
+            # 更新界面狀態
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_training_status(True, widget.current_program, widget.current_progress, widget.total_balls, "訓練中")
+            
+            self._log_message(f"✅ {machine_id} 訓練已恢復")
+            
         except Exception as e:
             self._log_message(f"❌ {machine_id} 恢復訓練錯誤: {e}")
     
@@ -1127,18 +2192,18 @@ class ThreeMachineSimpleWidget(QWidget):
         """停止指定發球機訓練"""
         self._log_message(f"⏹️ {machine_id} 停止訓練")
         
-        # 使用基礎訓練執行器停止訓練
         try:
-            if hasattr(self.gui, 'basic_training_executor'):
-                self.gui.basic_training_executor.stop_training()
-                self._log_message(f"✅ {machine_id} 訓練已停止")
-                
-                # 更新界面狀態
-                widget = self.machine_widgets.get(machine_id)
-                if widget:
-                    widget.update_training_status(False)
-            else:
-                self._log_message(f"❌ {machine_id} 找不到訓練執行器")
+            # 設置停止標誌
+            if machine_id in self.training_stop_flags:
+                self.training_stop_flags[machine_id] = True
+            
+            # 更新界面狀態
+            widget = self.machine_widgets.get(machine_id)
+            if widget:
+                widget.update_training_status(False)
+            
+            self._log_message(f"✅ {machine_id} 訓練停止指令已發送")
+            
         except Exception as e:
             self._log_message(f"❌ {machine_id} 停止訓練錯誤: {e}")
     
